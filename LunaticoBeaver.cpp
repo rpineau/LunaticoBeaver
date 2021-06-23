@@ -29,7 +29,6 @@ CLunaticoBeaver::CLunaticoBeaver()
     m_bShutterOpened = false;
 
     m_bParked = true;
-    m_bHomed = false;
 
     m_nHomingTries = 0;
     m_nGotoTries = 0;
@@ -106,7 +105,6 @@ CLunaticoBeaver::~CLunaticoBeaver()
 int CLunaticoBeaver::Connect(const char *pszPort)
 {
     int nErr;
-    bool bDummy;
 
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
     ltime = time(NULL);
@@ -118,7 +116,6 @@ int CLunaticoBeaver::Connect(const char *pszPort)
     m_bIsConnected = false;
     m_bCalibrating = false;
     m_bUnParking = false;
-    m_bHomed = false;
 
     // 115200 8N1
     nErr = m_pSerx->open(pszPort, 115200, SerXInterface::B_NOPARITY);
@@ -179,9 +176,10 @@ int CLunaticoBeaver::Connect(const char *pszPort)
 #endif
         return nErr;
     }
+    if(m_bShutterPresent)
+        setShutterPresent(m_bShutterPresent);
 
-    getShutterPresent(bDummy);
-
+    
     return SB_OK;
 }
 
@@ -196,7 +194,6 @@ void CLunaticoBeaver::Disconnect()
     m_bIsConnected = false;
     m_bCalibrating = false;
     m_bUnParking = false;
-    m_bHomed = false;
 
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
     ltime = time(NULL);
@@ -249,6 +246,14 @@ int CLunaticoBeaver::domeCommand(const std::string sCmd, std::string &sResp, int
 #endif
 
     return nErr;
+}
+
+int CLunaticoBeaver::shutterCommand(const std::string sCmd, std::string &sResp, int nTimeout)
+{
+    std::string newCmd;
+
+    newCmd="!dome sendtoshutter \""+sCmd+"\"#";
+    return domeCommand(newCmd, sResp, nTimeout);
 }
 
 int CLunaticoBeaver::readResponse(std::string &sResp, int nTimeout)
@@ -527,7 +532,6 @@ int CLunaticoBeaver::getShutterState(int &nState)
         fprintf(Logfile, "[%s] [CLunaticoBeaver::getShutterState] ERROR = %s\n", timestamp, sResp.c_str());
         fflush(Logfile);
 #endif
-        nState = SHUTTER_ERROR;
         return nErr;
     }
 
@@ -567,7 +571,7 @@ int CLunaticoBeaver::getDomeStepPerDeg(int &nStepsPerDeg)
         return NOT_CONNECTED;
 
     nStepsPerDeg = 0;
-    nErr = domeCommand("domerot getstepsperdegree#", sResp);
+    nErr = domeCommand("!domerot getstepsperdegree#", sResp);
     if(nErr) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
         ltime = time(NULL);
@@ -608,7 +612,6 @@ int CLunaticoBeaver::setDomeStepPerDeg(int nStepsPerDeg)
 int CLunaticoBeaver::getBatteryLevels(double &dShutterVolts, double &dShutterCutOff)
 {
     int nErr = PLUGIN_OK;
-    int rc = 0;
     std::string sResp;
     std::vector<std::string> svFields;
 
@@ -621,7 +624,7 @@ int CLunaticoBeaver::getBatteryLevels(double &dShutterVolts, double &dShutterCut
     dShutterVolts  = 0;
     dShutterCutOff = 0;
     if(m_bShutterPresent) {
-        nErr = domeCommand("shutter getvoltage#", sResp);
+        nErr = shutterCommand("shutter getvoltage", sResp);
         if(nErr) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
             ltime = time(NULL);
@@ -638,7 +641,7 @@ int CLunaticoBeaver::getBatteryLevels(double &dShutterVolts, double &dShutterCut
             dShutterVolts = std::stoi(svFields[1]);
         }
 
-        nErr = domeCommand("shutter getsafevoltage#", sResp);
+        nErr = shutterCommand("shutter getsafevoltage", sResp);
         if(nErr) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
             ltime = time(NULL);
@@ -676,8 +679,8 @@ int CLunaticoBeaver::setBatteryCutOff(double dShutterCutOff)
     if(!m_bIsConnected)
         return NOT_CONNECTED;
     
-    ssTmp<<"!shutter setsafevoltage " << dShutterCutOff <<"#";
-    nErr = domeCommand(ssTmp.str(), sResp);
+    ssTmp<<"shutter setsafevoltage" << dShutterCutOff;
+    nErr = shutterCommand(ssTmp.str(), sResp);
     return nErr;
 }
 
@@ -687,10 +690,9 @@ bool CLunaticoBeaver::isDomeMoving()
     int nTmp;
     
     getDomeStatus(nTmp);
-    
-    if(m_nDomeRotStatus)
-        bIsMoving = true;
-    
+
+    bIsMoving = (nTmp & DOME_MOVING) == DOME_MOVING;
+
     return bIsMoving;
 }
 
@@ -704,7 +706,7 @@ int CLunaticoBeaver::getDomeStatus(int &nStatus)
     if(!m_bIsConnected)
         return NOT_CONNECTED;
     
-    nErr = domeCommand("dome status#", sResp);
+    nErr = domeCommand("!dome status#", sResp);
     if(nErr & !m_bCalibrating) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
         ltime = time(NULL);
@@ -723,8 +725,8 @@ int CLunaticoBeaver::getDomeStatus(int &nStatus)
     }
 
     m_nDomeRotStatus = nStatus & DOME_STATUS_MASK;
-    m_nShutStatus = nStatus & SHUTTER_STATUS_MASK;
-    m_nIsRaining = nStatus & RAIN_STATUS_MASK;
+//    m_nShutStatus = nStatus & SHUTTER_STATUS_MASK;
+//    m_nIsRaining = nStatus & RAIN_STATUS_MASK;
     
 #ifdef PLUGIN_DEBUG
     ltime = time(NULL);
@@ -732,8 +734,8 @@ int CLunaticoBeaver::getDomeStatus(int &nStatus)
     timestamp[strlen(timestamp) - 1] = 0;
     fprintf(Logfile, "[%s] [CLunaticoBeaver::getDomeStatus] nStatus : %d\n", timestamp, nStatus);
     fprintf(Logfile, "[%s] [CLunaticoBeaver::getDomeStatus] m_nDomeRotStatus : %d\n", timestamp, m_nDomeRotStatus);
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::getDomeStatus] m_nShutStatus : %d\n", timestamp, m_nShutStatus);
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::getDomeStatus] m_nIsRaining : %d\n", timestamp, m_nIsRaining);
+//    fprintf(Logfile, "[%s] [CLunaticoBeaver::getDomeStatus] m_nShutStatus : %d\n", timestamp, m_nShutStatus);
+//    fprintf(Logfile, "[%s] [CLunaticoBeaver::getDomeStatus] m_nIsRaining : %d\n", timestamp, m_nIsRaining);
     fflush(Logfile);
 #endif
     
@@ -856,9 +858,8 @@ int CLunaticoBeaver::unparkDome()
 int CLunaticoBeaver::gotoAzimuth(double dNewAz)
 {
     int nErr = PLUGIN_OK;
-    char szBuf[SERIAL_BUFFER_SIZE];
     std::string sResp;
-
+    std::stringstream ssTmp;
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
@@ -866,8 +867,8 @@ int CLunaticoBeaver::gotoAzimuth(double dNewAz)
     while(dNewAz >= 360)
         dNewAz = dNewAz - 360;
 
-    snprintf(szBuf, SERIAL_BUFFER_SIZE, "g%3.2f#", dNewAz);
-    nErr = domeCommand(szBuf, sResp);
+    ssTmp<<"!dome gotoaz " << dNewAz << "#";
+    nErr = domeCommand(ssTmp.str(), sResp);
     if(nErr) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
         ltime = time(NULL);
@@ -887,10 +888,7 @@ int CLunaticoBeaver::gotoAzimuth(double dNewAz)
 int CLunaticoBeaver::openShutter()
 {
     int nErr = PLUGIN_OK;
-    bool bDummy;
     std::string sResp;
-    double domeVolts;
-    double dDomeCutOff;
     double dShutterVolts;
     double dShutterCutOff;
     
@@ -900,7 +898,6 @@ int CLunaticoBeaver::openShutter()
     if(m_bCalibrating)
         return SB_OK;
 
-    getShutterPresent(bDummy);
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
     ltime = time(NULL);
     timestamp = asctime(localtime(&ltime));
@@ -948,7 +945,6 @@ int CLunaticoBeaver::openShutter()
 int CLunaticoBeaver::closeShutter()
 {
     int nErr = PLUGIN_OK;
-    bool bDummy;
     std::string sResp;
     double dShutterVolts;
     double dShutterCutOff;
@@ -959,7 +955,6 @@ int CLunaticoBeaver::closeShutter()
     if(m_bCalibrating)
         return SB_OK;
 
-    getShutterPresent(bDummy);
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
     ltime = time(NULL);
     timestamp = asctime(localtime(&ltime));
@@ -1073,7 +1068,7 @@ int CLunaticoBeaver::getShutterFirmwareVersion(char *szVersion, int nStrMaxLen)
 
     memset(szVersion, 0, nStrMaxLen);
 
-    nErr = domeCommand("!dome sendtoshutter \"seletek version\"#", sResp);
+    nErr = shutterCommand("seletek version", sResp);
     if(nErr) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
         ltime = time(NULL);
@@ -1121,7 +1116,6 @@ int CLunaticoBeaver::goHome()
         return SB_OK;
     }
     else if(isDomeAtHome()){
-            m_bHomed = true;
             return PLUGIN_OK;
     }
 #ifdef PLUGIN_DEBUG
@@ -1168,7 +1162,7 @@ int CLunaticoBeaver::calibrate()
         return nErr;
     }
 
-    nErr = domeCommand("!dome autocalrot#", sResp);
+    nErr = domeCommand("!dome autocalrot 2#", sResp);
     if(nErr) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
         ltime = time(NULL);
@@ -1191,6 +1185,13 @@ int CLunaticoBeaver::isGoToComplete(bool &bComplete)
 
     if(!m_bIsConnected)
         return NOT_CONNECTED;
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CLunaticoBeaver::isGoToComplete]\n", timestamp);
+    fflush(Logfile);
+#endif
 
     bComplete = false;
     if(isDomeMoving()) {
@@ -1286,11 +1287,9 @@ int CLunaticoBeaver::isOpenComplete(bool &bComplete)
 {
     int nErr = PLUGIN_OK;
     int nState;
-    bool bDummy;
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
-    getShutterPresent(bDummy);
     if(!m_bShutterPresent) {
         bComplete = true;
         return SB_OK;
@@ -1325,12 +1324,10 @@ int CLunaticoBeaver::isCloseComplete(bool &bComplete)
 {
     int nErr = PLUGIN_OK;
     int nState;
-    bool bDummy;
     
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
-    getShutterPresent(bDummy);
     if(!m_bShutterPresent) {
         bComplete = true;
         return SB_OK;
@@ -1404,15 +1401,13 @@ int CLunaticoBeaver::isParkComplete(bool &bComplete)
 
     getDomeAz(dDomeAz);
 
-    // we need to test "large" depending on the heading error
-    if ((ceil(m_dParkAz) <= ceil(dDomeAz)+3) && (ceil(m_dParkAz) >= ceil(dDomeAz)-3)) {
+    if(checkBoundaries(m_dParkAz, dDomeAz)) {
         m_bParked = true;
         bComplete = true;
     }
     else {
         // we're not moving and we're not at the final destination !!!
         bComplete = false;
-        m_bHomed = false;
         m_bParked = false;
         nErr = ERR_CMDFAILED;
     }
@@ -1494,7 +1489,6 @@ int CLunaticoBeaver::isFindHomeComplete(bool &bComplete)
 #endif
 
     if(isDomeMoving()) {
-        m_bHomed = false;
         bComplete = false;
 #ifdef PLUGIN_DEBUG
         ltime = time(NULL);
@@ -1508,7 +1502,6 @@ int CLunaticoBeaver::isFindHomeComplete(bool &bComplete)
     }
 
     if(isDomeAtHome()){
-        m_bHomed = true;
         bComplete = true;
         if(m_bUnParking)
             m_bParked = false;
@@ -1532,7 +1525,6 @@ int CLunaticoBeaver::isFindHomeComplete(bool &bComplete)
         fflush(Logfile);
 #endif
         bComplete = false;
-        m_bHomed = false;
         m_bParked = false;
         // sometimes we pass the home sensor and the dome doesn't rotate back enough to detect it.
         // this is mostly the case with firmware 1.10 with the new error correction ...
@@ -1551,37 +1543,74 @@ int CLunaticoBeaver::isFindHomeComplete(bool &bComplete)
 int CLunaticoBeaver::isCalibratingComplete(bool &bComplete)
 {
     int nErr = PLUGIN_OK;
-    double dDomeAz = 0;
+    std::string sResp;
+    std::vector<std::string> svFields;
+    int nTmp;
 
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
-    if(isDomeMoving()) {
-        getDomeAz(dDomeAz);
-        m_bHomed = false;
-        bComplete = false;
+    bComplete = false;
+    // check if calibration is done : !domerot getcalibrationstatus# and !shutter getcalibrationstatus#
+
+    nErr = domeCommand("!domerot getcalibrationstatus#", sResp);
+    if(nErr) {
+        return ERR_CMDFAILED;
+    }
+
+    parseFields(sResp, svFields, ':');
+    if(svFields.size()>=2) {
+        nTmp = std::stoi(svFields[1]);
+        switch(nTmp) {
+            case 0:
+                bComplete = true;
+                break;
+            case 1:
+                bComplete = false;
+                break;
+            case 2:
+                bComplete = true;
+                break;
+            default:
+                bComplete = false;
+                nErr = ERR_CMDFAILED;
+        }
+    }
+
+    if(!bComplete)
         return nErr;
+
+    nErr = shutterCommand("shutter getcalibrationstatus", sResp);
+    if(nErr) {
+        return ERR_CMDFAILED;
     }
 
-
-    nErr = getDomeAz(dDomeAz);
-
-    if (ceil(m_dHomeAz) != ceil(dDomeAz)) {
-        // We need to resync the current position to the home position.
-        m_dCurrentAzPosition = m_dHomeAz;
-        syncDome(m_dCurrentAzPosition,m_dCurrentElPosition);
+    parseFields(sResp, svFields, ':');
+    if(svFields.size()>=2) {
+        nTmp = std::stoi(svFields[1]);
+        switch(nTmp) {
+            case 0:
+                bComplete = true;
+                break;
+            case 1:
+                bComplete = false;
+                break;
+            case 2:
+                bComplete = true;
+                break;
+            default:
+                bComplete = false;
+                nErr = ERR_CMDFAILED;
+        }
     }
 
-    nErr = getDomeStepPerDeg(m_nStepsPerDeg);
-    m_bHomed = true;
-    bComplete = true;
     m_bCalibrating = false;
+    nErr = getDomeStepPerDeg(m_nStepsPerDeg);
 #ifdef PLUGIN_DEBUG
     ltime = time(NULL);
     timestamp = asctime(localtime(&ltime));
     timestamp[strlen(timestamp) - 1] = 0;
     fprintf(Logfile, "[%s] [CLunaticoBeaver::getNbTicksPerRev] final m_nStepsPerDeg = %d\n", timestamp, m_nStepsPerDeg);
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::getNbTicksPerRev] final m_bHomed = %s\n", timestamp, m_bHomed?"True":"False");
     fprintf(Logfile, "[%s] [CLunaticoBeaver::getNbTicksPerRev] final m_bCalibrating = %s\n", timestamp, m_bCalibrating?"True":"False");
     fprintf(Logfile, "[%s] [CLunaticoBeaver::getNbTicksPerRev] final bComplete = %s\n", timestamp, bComplete?"True":"False");
     fflush(Logfile);
@@ -1598,7 +1627,6 @@ int CLunaticoBeaver::abortCurrentCommand()
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
-    m_bHomed = false;
     m_bParked = false;
     m_bCalibrating = false;
     m_bParking = false;
@@ -1650,6 +1678,22 @@ int CLunaticoBeaver::getShutterPresent(bool &bShutterPresent)
     bShutterPresent = m_bShutterPresent;
     return nErr;
 
+}
+
+int CLunaticoBeaver::setShutterPresent(bool bShutterPresent)
+{
+    int nErr = PLUGIN_OK;
+    std::string sResp;
+    std::stringstream ssTmp;
+
+    if(!m_bIsConnected) {
+        m_bShutterPresent = true;
+        return NOT_CONNECTED;
+    }
+    ssTmp<<"!domerot setshutterenable " << (bShutterPresent?"1":"0") << "#";
+    nErr = domeCommand(ssTmp.str(), sResp);
+
+    return nErr;
 }
 
 #pragma mark - Getter / Setter

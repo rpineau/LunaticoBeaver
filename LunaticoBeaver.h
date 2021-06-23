@@ -41,14 +41,46 @@
 #define RAIN_CHECK_INTERVAL 10
 
 #define PLUGIN_DEBUG 2
-#define DRIVER_VERSION      2.65
+#define DRIVER_VERSION      1.00
 
-#define DOME_STATUS_MASK        0x01
-#define SHUTTER_STATUS_MASK     0x02
-#define DOME_MECH_ERR_MASK      0x04
-#define SHUTTER_MECH_ERR_MASK   0x08
-#define SHUTTER_COM_ERR_MASK    0x10
-#define RAIN_STATUS_MASK        0x60
+/*
+ • bit 0: ok moving rot
+ • bit 1: ok moving shutter (3 ok moving both aka 2^0 + 2^1 = 3)
+ • bit 2: mech error rotation
+ • bit 3: mech error shutter
+ • bit 4: comms error shutter
+
+ … and from version 1.1.0, to include all status information in one command:
+ • bit 5: unsafe by CW
+ • bit 6: unsafe by Hydreon RG-x
+ • bit 7: shutter open
+ • bit 8: shutter closed
+ • bit 9: shutter opening
+ • bit 10. shutter closing
+ • bit 11: Dome at home
+ • bit 12: Dome at park
+ */
+#define DOME_STATUS_MASK        0x0007
+#define SHUTTER_COM_STATUS_MASK 0x0008
+#define RAIN_SENSOR_MASK        0x0060
+#define SHUTTER_STATUS_MASK     0x0780
+#define DOME_HOME_PARK_MASK     0x1800
+
+#define DOME_NOT_MOVING            0
+#define DOME_MOVING                1
+#define SHUTTER_MOVING             2
+#define DOME_AND_SHUTTER_MOVING    3
+#define DOME_MECH_ERROR            4
+#define SHUTTER_MECH_ERROR         8
+#define SHUTTER_COM_ERROR         16
+#define RAIN_CW                   32
+#define RAIN_RG                   64
+#define SHUTTER_OPEN             128
+#define SHUTTER_CLOSED           256
+#define SHUTTER_OPENING          512
+#define SHUTTER_CLOSING         1024
+#define DOME_AT_HOME            2048
+#define DOME_AT_PARK            4096
 
 // error codes
 // Error code
@@ -97,6 +129,8 @@ public:
 
     int abortCurrentCommand();
     int getShutterPresent(bool &bShutterPresent);
+    int setShutterPresent(bool bShutterPresent);
+
     // getter/setter
     int getNbTicksPerRev();
     int setNbTicksPerRev(int nSteps);
@@ -151,6 +185,7 @@ public:
 protected:
 
     int             domeCommand(const std::string sCmd, std::string &sResp, int nTimeout = MAX_TIMEOUT);
+    int             shutterCommand(const std::string sCmd, std::string &sResp, int nTimeout = MAX_TIMEOUT);
     int             readResponse(std::string &sResp, int nTimeout = MAX_TIMEOUT);
     int             getDomeAz(double &dDomeAz);
     int             getDomeEl(double &dDomeEl);
@@ -174,7 +209,6 @@ protected:
     SleeperInterface *m_pSleeper;
 
     bool            m_bIsConnected;
-    bool            m_bHomed;
     bool            m_bParked;
     bool            m_bShutterOpened;
     bool            m_bCalibrating;

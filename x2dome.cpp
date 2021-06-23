@@ -37,6 +37,7 @@ X2Dome::X2Dome(const char* pszSelection, const int& nISIndex,
         m_LunaticoBeaver.setHomeOnPark(m_bHomeOnPark);
         m_LunaticoBeaver.setHomeOnUnpark(m_bHomeOnUnpark);
         m_LunaticoBeaver.enableRainStatusFile(m_bLogRainStatus);
+        m_LunaticoBeaver.setShutterPresent(true);
     }
 }
 
@@ -126,7 +127,6 @@ int X2Dome::execModalSettingsDialog()
     std::string fName;
     double dHomeAz;
     double dParkAz;
-    double dDomeBattery, dDomeCutOff;
     double dShutterBattery, dShutterCutOff;
     bool nReverseDir;
     int n_nbStepPerRev;
@@ -247,13 +247,8 @@ int X2Dome::execModalSettingsDialog()
             dx->setText("shutterPresent", "No Shutter detected");
         }
 
-        //m_LunaticoBeaver.getBatteryLevels(dDomeBattery, dDomeCutOff, dShutterBattery, dShutterCutOff);
-        //dx->setPropertyDouble("lowRotBatCutOff","value", dDomeCutOff);
-
-        snprintf(szTmpBuf,16,"%2.2f V",dDomeBattery);
-        dx->setPropertyString("domeBatteryLevel","text", szTmpBuf);
-
         if(m_bHasShutterControl) {
+            m_LunaticoBeaver.getBatteryLevels( dShutterBattery, dShutterCutOff);
             dx->setPropertyDouble("lowShutBatCutOff","value", dShutterCutOff);
 
             if(dShutterBattery>=0.0f)
@@ -363,7 +358,6 @@ void X2Dome::uiEvent(X2GUIExchangeInterface* uiex, const char* pszEvent)
 {
     bool bComplete = false;
     int nErr;
-    double dDomeBattery, dDomeCutOff;
     double dShutterBattery, dShutterCutOff;
     char szTmpBuf[SERIAL_BUFFER_SIZE];
     char szErrorMessage[LOG_BUFFER_SIZE];
@@ -441,29 +435,18 @@ void X2Dome::uiEvent(X2GUIExchangeInterface* uiex, const char* pszEvent)
 
             else if(m_bHasShutterControl && !m_bCalibratingDome) {
                 // don't ask to often
-/*
-                if (!(m_nBattRequest%4)) {
-
-                    m_LunaticoBeaver.getBatteryLevels(dDomeBattery, dDomeCutOff, dShutterBattery, dShutterCutOff);
+                if (m_bHasShutterControl && !(m_nBattRequest%4)) {
+                    m_LunaticoBeaver.getBatteryLevels(dShutterBattery, dShutterCutOff);
                     if(dShutterCutOff < 1.0f) // not right.. ask again
-                        m_LunaticoBeaver.getBatteryLevels(dDomeBattery, dDomeCutOff, dShutterBattery, dShutterCutOff);
-                    snprintf(szTmpBuf,16,"%2.2f V",dDomeBattery);
-                    uiex->setPropertyString("domeBatteryLevel","text", szTmpBuf);
-                    if(m_bHasShutterControl) {
+                        m_LunaticoBeaver.getBatteryLevels(dShutterBattery, dShutterCutOff);
                         if(dShutterBattery>=0.0f)
                             snprintf(szTmpBuf,16,"%2.2f V",dShutterBattery);
                         else
                             snprintf(szTmpBuf,16,"--");
                         uiex->setPropertyString("shutterBatteryLevel","text", szTmpBuf);
                         uiex->setPropertyDouble("lowShutBatCutOff","value", dShutterCutOff);
-                    }
-                    else {
-                        snprintf(szTmpBuf,16,"NA");
-                        uiex->setPropertyString("shutterBatteryLevel","text", szTmpBuf);
-                    }
                 }
                 m_nBattRequest++;
- */
                 nErr = m_LunaticoBeaver.getRainSensorStatus(nRainSensorStatus);
                 if(nErr)
                     uiex->setPropertyString("rainStatus","text", "--");
