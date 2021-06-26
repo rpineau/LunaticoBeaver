@@ -691,7 +691,7 @@ bool CLunaticoBeaver::isDomeMoving()
     
     getDomeStatus(nTmp);
 
-    bIsMoving = (nTmp & DOME_MOVING) == DOME_MOVING;
+    bIsMoving = ((nTmp & DOME_MOVING) == DOME_MOVING);
 
     return bIsMoving;
 }
@@ -1257,6 +1257,14 @@ bool CLunaticoBeaver::checkBoundaries(double dGotoAz, double dDomeAz)
     double highMark;
     double lowMark;
     double roundedGotoAz;
+
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CLunaticoBeaver::checkBoundaries]\n", timestamp);
+    fflush(Logfile);
+#endif
 
     // we need to test "large" depending on the heading error and movement coasting
     highMark = ceil(dDomeAz)+2;
