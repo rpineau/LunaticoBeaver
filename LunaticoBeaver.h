@@ -36,7 +36,6 @@
 #define MAX_TIMEOUT 500
 #define MAX_READ_WAIT_TIMEOUT 25
 #define ND_LOG_BUFFER_SIZE 256
-#define PANID_TIMEOUT 15    // in seconds
 #define RAIN_CHECK_INTERVAL 10
 
 #define PLUGIN_DEBUG 2

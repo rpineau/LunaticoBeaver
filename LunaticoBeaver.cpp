@@ -1366,6 +1366,7 @@ int CLunaticoBeaver::isParkComplete(bool &bComplete)
     int nErr = PLUGIN_OK;
     double dDomeAz=0;
     bool bFoundHome;
+    std::string sResp;
 
     if(m_bCalibrating)
         return nErr;
@@ -1399,7 +1400,7 @@ int CLunaticoBeaver::isParkComplete(bool &bComplete)
             fflush(Logfile);
 #endif
             m_bParking = false;
-            nErr = gotoAzimuth(m_dParkAz);
+            nErr = domeCommand("!dome gopark#", sResp);
         }
         return nErr;
     }
