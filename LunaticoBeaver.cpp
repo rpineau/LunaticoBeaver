@@ -266,13 +266,13 @@ int CLunaticoBeaver::readResponse(std::string &sResp, int nTimeout)
     int nBytesWaiting = 0 ;
     int nbTimeouts = 0;
 
-    memset(pszBuf, 0, (size_t) SERIAL_BUFFER_SIZE);
-    pszBufPtr = pszBuf;
     sResp.clear();
+    memset(pszBuf, 0, SERIAL_BUFFER_SIZE);
+    pszBufPtr = pszBuf;
 
     do {
         nErr = m_pSerx->bytesWaitingRx(nBytesWaiting);
-#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 3
+#if defined MFDeluxe_DEBUG && MFDeluxe_DEBUG >= 3
         ltime = time(NULL);
         timestamp = asctime(localtime(&ltime));
         timestamp[strlen(timestamp) - 1] = 0;
@@ -281,15 +281,16 @@ int CLunaticoBeaver::readResponse(std::string &sResp, int nTimeout)
         fflush(Logfile);
 #endif
         if(!nBytesWaiting) {
-            if(nbTimeouts++ >= NB_RX_WAIT) {
-#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+            nbTimeouts += MAX_READ_WAIT_TIMEOUT;
+            if(nbTimeouts >= nTimeout) {
+#if defined MFDeluxe_DEBUG && MFDeluxe_DEBUG >= 3
                 ltime = time(NULL);
                 timestamp = asctime(localtime(&ltime));
                 timestamp[strlen(timestamp) - 1] = 0;
-                fprintf(Logfile, "[%s] [CLunaticoBeaver::readResponse] bytesWaitingRx timeout, no data for %d loops\n", timestamp, NB_RX_WAIT);
+                fprintf(Logfile, "[%s] [CLunaticoBeaver::readResponse] bytesWaitingRx timeout, no data for %d ms\n", timestamp, nbTimeouts);
                 fflush(Logfile);
 #endif
-                nErr = ERR_RXTIMEOUT;
+                nErr = COMMAND_TIMEOUT;
                 break;
             }
             m_pSleeper->sleep(MAX_READ_WAIT_TIMEOUT);
@@ -303,31 +304,31 @@ int CLunaticoBeaver::readResponse(std::string &sResp, int nTimeout)
             break; // buffer is full.. there is a problem !!
         }
         if(nErr) {
-#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+#if defined MFDeluxe_DEBUG && MFDeluxe_DEBUG >= 2
             ltime = time(NULL);
             timestamp = asctime(localtime(&ltime));
             timestamp[strlen(timestamp) - 1] = 0;
-            fprintf(Logfile, "[%s] [CLunaticoBeaver::readResponse] readFile error.\n", timestamp);
+            fprintf(Logfile, "[%s] [CMFDeluxeController::readResponse] readFile error.\n", timestamp);
             fflush(Logfile);
 #endif
             return nErr;
         }
 
         if (ulBytesRead != nBytesWaiting) { // timeout
-#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+#if defined MFDeluxe_DEBUG && MFDeluxe_DEBUG >= 2
             ltime = time(NULL);
             timestamp = asctime(localtime(&ltime));
             timestamp[strlen(timestamp) - 1] = 0;
-            fprintf(Logfile, "[%s] [CLunaticoBeaver::readResponse] readFile Timeout Error\n", timestamp);
-            fprintf(Logfile, "[%s] [CLunaticoBeaver::readResponse] readFile nBytesWaiting = %d\n", timestamp, nBytesWaiting);
-            fprintf(Logfile, "[%s] [CLunaticoBeaver::readResponse] readFile ulBytesRead = %lu\n", timestamp, ulBytesRead);
+            fprintf(Logfile, "[%s] [CMFDeluxeController::readResponse] readFile Timeout Error\n", timestamp);
+            fprintf(Logfile, "[%s] [CMFDeluxeController::readResponse] readFile nBytesWaiting = %d\n", timestamp, nBytesWaiting);
+            fprintf(Logfile, "[%s] [CMFDeluxeController::readResponse] readFile ulBytesRead = %lu\n", timestamp, ulBytesRead);
             fflush(Logfile);
 #endif
         }
 
         ulTotalBytesRead += ulBytesRead;
         pszBufPtr+=ulBytesRead;
-    } while (ulTotalBytesRead < SERIAL_BUFFER_SIZE  && *(pszBufPtr-1) != '#');
+    }  while (ulTotalBytesRead < SERIAL_BUFFER_SIZE  && *(pszBufPtr-1) != '#');
 
     if(!ulTotalBytesRead)
         nErr = COMMAND_TIMEOUT; // we didn't get an answer.. so timeout
@@ -346,6 +347,7 @@ int CLunaticoBeaver::readResponse(std::string &sResp, int nTimeout)
 
     return nErr;
 }
+
 
 int CLunaticoBeaver::getDomeAz(double &dDomeAz)
 {
@@ -798,7 +800,7 @@ int CLunaticoBeaver::syncDome(double dAz, double dEl)
         return NOT_CONNECTED;
 
     m_dCurrentAzPosition = dAz;
-    snprintf(szBuf, SERIAL_BUFFER_SIZE, "s%3.2f#", dAz);
+    snprintf(szBuf, SERIAL_BUFFER_SIZE, "!dome setaz %3.2f#", dAz);
     nErr = domeCommand(szBuf, sResp);
     if(nErr) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
