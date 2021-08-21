@@ -115,7 +115,8 @@ public:
     int getFirmwareVersion(float &fVersion);
     int getShutterFirmwareVersion(char *szVersion, int nStrMaxLen);
     int goHome();
-    int calibrate();
+    int calibrateDome();
+    int calibrateShutter();
 
     // command complete functions
     int isGoToComplete(bool &bComplete);
@@ -124,7 +125,8 @@ public:
     int isParkComplete(bool &bComplete);
     int isUnparkComplete(bool &bComplete);
     int isFindHomeComplete(bool &bComplete);
-    int isCalibratingComplete(bool &bComplete);
+    int isCalibratingDomeComplete(bool &bComplete);
+    int isCalibratingShutterComplete(bool &bComplete);
 
     int abortCurrentCommand();
     int getShutterPresent(bool &bShutterPresent);
@@ -149,22 +151,13 @@ public:
     int getBatteryLevels(double &dShutterVolts, double &dShutterCutOff);
     int setBatteryCutOff(double dShutterCutOff);
 
-    int getDefaultDir(bool &bNormal);
-    int setDefaultDir(bool bNormal);
-
     int getRainSensorStatus(int &nStatus);
 
-    int getRotationSpeed(int &nSpeed);
-    int setRotationSpeed(int nSpeed);
+    int getRotationSpeed(int &nMinSpeed, int &nMaxSpeed, int &nAccel);
+    int setRotationSpeed(int nMinSpeed, int nMaxSpeed, int nAccel);
 
-    int getRotationAcceleration(int &nAcceleration);
-    int setRotationAcceleration(int nAcceleration);
-
-    int getShutterSpeed(int &nSpeed);
-    int setShutterSpeed(int nSpeed);
-
-    int getShutterAcceleration(int &nAcceleration);
-    int setShutterAcceleration(int nAcceleration);
+    int getShutterSpeed(int &nMinSpeed, int &nMaxSpeed, int &nAccel);
+    int setShutterSpeed(int nMinSpeed, int nMaxSpeed, int nAccel);
 
     void setHomeOnPark(const bool bEnabled);
     void setHomeOnUnpark(const bool bEnabled);
@@ -179,7 +172,9 @@ public:
     void enableRainStatusFile(bool bEnable);
     void getRainStatusFileName(std::string &fName);
     void writeRainStatus();
-    
+
+    int saveSettingsToEEProm();
+
 protected:
 
     int             domeCommand(const std::string sCmd, std::string &sResp, int nTimeout = MAX_TIMEOUT);
@@ -190,8 +185,8 @@ protected:
     int             getDomeHomeAz(double &dAz);
     int             getDomeParkAz(double &dAz);
     int             getShutterState(int &nState);
-    int             getDomeStepPerDeg(int &nStepPerDeg);
-    int             setDomeStepPerDeg(int nStepPerDeg);
+    int             getDomeStepPerDeg(double &dStepPerDeg);
+    int             setDomeStepPerDeg(double dStepPerDeg);
     int             getDomeStatus(int &nStatus);
     
     bool            isDomeMoving();
@@ -211,7 +206,7 @@ protected:
     bool            m_bShutterOpened;
     bool            m_bCalibrating;
 
-    int             m_nStepsPerDeg;
+    double          m_dStepsPerDeg;
     int             m_nNbStepPerRev;
     double          m_dShutterBatteryVolts;
     double          m_dHomeAz;
