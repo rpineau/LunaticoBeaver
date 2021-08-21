@@ -131,8 +131,7 @@ public:
     int setShutterPresent(bool bShutterPresent);
 
     // getter/setter
-    int getNbTicksPerRev();
-    int setNbTicksPerRev(int nSteps);
+    int getDomeStepPerRev();
     int setDomeStepPerRev(int nStep);
 
     int getBatteryLevel();

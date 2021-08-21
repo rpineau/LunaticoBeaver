@@ -197,7 +197,7 @@ int X2Dome::execModalSettingsDialog()
 
         // read values from dome controller
         dx->setEnabled("ticksPerRev",true);
-        n_nbStepPerRev = m_LunaticoBeaver.getNbTicksPerRev();
+        n_nbStepPerRev = m_LunaticoBeaver.getDomeStepPerRev();
         dx->setPropertyInt("ticksPerRev","value", n_nbStepPerRev);
 
         dx->setEnabled("rotationSpeed",true);
@@ -333,7 +333,7 @@ int X2Dome::execModalSettingsDialog()
             m_LunaticoBeaver.setDefaultDir(!nReverseDir);
             m_LunaticoBeaver.setHomeAz(dHomeAz);
             m_LunaticoBeaver.setParkAz(dParkAz);
-            m_LunaticoBeaver.setNbTicksPerRev(n_nbStepPerRev);
+            m_LunaticoBeaver.setDomeStepPerRev(n_nbStepPerRev);
             m_LunaticoBeaver.setRotationSpeed(nRSpeed);
             m_LunaticoBeaver.setRotationAcceleration(nRAcc);
 			// m_LunaticoBeaver.setBatteryCutOff(batRotCutOff, batShutCutOff);
@@ -430,7 +430,7 @@ void X2Dome::uiEvent(X2GUIExchangeInterface* uiex, const char* pszEvent)
 				uiex->setText("pushButton", "Calibrate");
                 uiex->setEnabled("pushButton_2", true);
                 // read step per rev from controller
-                uiex->setPropertyInt("ticksPerRev","value", m_LunaticoBeaver.getNbTicksPerRev());
+                uiex->setPropertyInt("ticksPerRev","value", m_LunaticoBeaver.getDomeStepPerRev());
 			}
 
             else if(m_bHasShutterControl && !m_bCalibratingDome) {
@@ -474,7 +474,7 @@ void X2Dome::uiEvent(X2GUIExchangeInterface* uiex, const char* pszEvent)
                 uiex->setText("pushButton", "Calibrate");
 				// restore saved ticks per rev
 				uiex->setPropertyInt("ticksPerRev","value", m_nSavedTicksPerRev);
-				m_LunaticoBeaver.setNbTicksPerRev(m_nSavedTicksPerRev);
+				m_LunaticoBeaver.setDomeStepPerRev(m_nSavedTicksPerRev);
             } else {								// Calibrate
                 // disable buttons
                 uiex->setEnabled("pushButtonOK", false);
@@ -482,7 +482,7 @@ void X2Dome::uiEvent(X2GUIExchangeInterface* uiex, const char* pszEvent)
                 uiex->setEnabled("pushButton_2", false);
                 // change "Calibrate" to "Abort"
                 uiex->setText("pushButton", "Abort");
-				m_nSavedTicksPerRev = m_LunaticoBeaver.getNbTicksPerRev();
+				m_nSavedTicksPerRev = m_LunaticoBeaver.getDomeStepPerRev();
                 m_LunaticoBeaver.calibrate();
                 m_bCalibratingDome = true;
             }

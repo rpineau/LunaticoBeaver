@@ -563,54 +563,6 @@ int CLunaticoBeaver::getShutterState(int &nState)
 }
 
 
-int CLunaticoBeaver::getDomeStepPerDeg(int &nStepsPerDeg)
-{
-    int nErr = PLUGIN_OK;
-    std::string sResp;
-    std::vector<std::string> svFields;
-    
-    if(!m_bIsConnected)
-        return NOT_CONNECTED;
-
-    nStepsPerDeg = 0;
-    nErr = domeCommand("!domerot getstepsperdegree#", sResp);
-    if(nErr) {
-#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::getDomeStepPerDeg] ERROR = %s\n", timestamp, sResp.c_str());
-        fflush(Logfile);
-#endif
-        return nErr;
-    }
-
-    parseFields(sResp, svFields, ':');
-    if(svFields.size()>=2) {
-        nStepsPerDeg = std::stoi(svFields[1]);
-    }
-
-    m_nStepsPerDeg = nStepsPerDeg;
-    return nErr;
-}
-
-int CLunaticoBeaver::setDomeStepPerDeg(int nStepsPerDeg)
-{
-    int nErr = PLUGIN_OK;
-    std::string sResp;
-    std::stringstream ssTmp;
-    
-    m_nStepsPerDeg = nStepsPerDeg;
-
-    if(!m_bIsConnected)
-        return NOT_CONNECTED;
-
-    ssTmp<<"!domerot setstepsperdegree " << nStepsPerDeg <<"#";
-    nErr = domeCommand(ssTmp.str(), sResp);
-    return nErr;
-
-}
-
 int CLunaticoBeaver::getBatteryLevels(double &dShutterVolts, double &dShutterCutOff)
 {
     int nErr = PLUGIN_OK;
@@ -1164,7 +1116,7 @@ int CLunaticoBeaver::calibrate()
         return nErr;
     }
 
-    nErr = domeCommand("!dome autocalrot 2#", sResp);
+    nErr = domeCommand("!domerot calibrate 2#", sResp);
     if(nErr) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
         ltime = time(NULL);
@@ -1620,9 +1572,9 @@ int CLunaticoBeaver::isCalibratingComplete(bool &bComplete)
     ltime = time(NULL);
     timestamp = asctime(localtime(&ltime));
     timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::getNbTicksPerRev] final m_nStepsPerDeg = %d\n", timestamp, m_nStepsPerDeg);
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::getNbTicksPerRev] final m_bCalibrating = %s\n", timestamp, m_bCalibrating?"True":"False");
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::getNbTicksPerRev] final bComplete = %s\n", timestamp, bComplete?"True":"False");
+    fprintf(Logfile, "[%s] [CLunaticoBeaver::isCalibratingComplete] final m_nStepsPerDeg = %d\n", timestamp, m_nStepsPerDeg);
+    fprintf(Logfile, "[%s] [CLunaticoBeaver::isCalibratingComplete] final m_bCalibrating = %s\n", timestamp, m_bCalibrating?"True":"False");
+    fprintf(Logfile, "[%s] [CLunaticoBeaver::isCalibratingComplete] final bComplete = %s\n", timestamp, bComplete?"True":"False");
     fflush(Logfile);
 #endif
     return nErr;
@@ -1708,7 +1660,7 @@ int CLunaticoBeaver::setShutterPresent(bool bShutterPresent)
 
 #pragma mark - Getter / Setter
 
-int CLunaticoBeaver::getNbTicksPerRev()
+int CLunaticoBeaver::getDomeStepPerRev()
 {
 #ifdef PLUGIN_DEBUG
     ltime = time(NULL);
@@ -1733,24 +1685,70 @@ int CLunaticoBeaver::getNbTicksPerRev()
     return m_nNbStepPerRev;
 }
 
-int CLunaticoBeaver::setNbTicksPerRev(int nSteps)
-{
-    int nErr = PLUGIN_OK;
-
-    if(m_bIsConnected) {
-        nErr = setDomeStepPerRev(nSteps);
-        m_nNbStepPerRev = nSteps*360.0;
-
-    }
-    return nErr;
-}
 
 int CLunaticoBeaver::setDomeStepPerRev(int nSteps)
 {
     int nErr = PLUGIN_OK;
     std::string sResp;
+    char szBuf[SERIAL_BUFFER_SIZE];
+    double nStepPerDeg = 0;
 
+    nStepPerDeg = float(nSteps)/360.0;
+
+    snprintf(szBuf, SERIAL_BUFFER_SIZE, " !domerot setstepsperdegree %3.6f#", nStepPerDeg);
+    nErr = domeCommand(szBuf, sResp);
+    if(nErr)
+        return nErr;
+    m_nNbStepPerRev = nSteps;
     return nErr;
+}
+
+int CLunaticoBeaver::getDomeStepPerDeg(int &nStepsPerDeg)
+{
+    int nErr = PLUGIN_OK;
+    std::string sResp;
+    std::vector<std::string> svFields;
+
+    if(!m_bIsConnected)
+        return NOT_CONNECTED;
+
+    nStepsPerDeg = 0;
+    nErr = domeCommand("!domerot getstepsperdegree#", sResp);
+    if(nErr) {
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+        ltime = time(NULL);
+        timestamp = asctime(localtime(&ltime));
+        timestamp[strlen(timestamp) - 1] = 0;
+        fprintf(Logfile, "[%s] [CLunaticoBeaver::getDomeStepPerDeg] ERROR = %s\n", timestamp, sResp.c_str());
+        fflush(Logfile);
+#endif
+        return nErr;
+    }
+
+    parseFields(sResp, svFields, ':');
+    if(svFields.size()>=2) {
+        nStepsPerDeg = std::stoi(svFields[1]);
+    }
+
+    m_nStepsPerDeg = nStepsPerDeg;
+    return nErr;
+}
+
+int CLunaticoBeaver::setDomeStepPerDeg(int nStepsPerDeg)
+{
+    int nErr = PLUGIN_OK;
+    std::string sResp;
+    std::stringstream ssTmp;
+
+    m_nStepsPerDeg = nStepsPerDeg;
+
+    if(!m_bIsConnected)
+        return NOT_CONNECTED;
+
+    ssTmp<<"!domerot setstepsperdegree " << nStepsPerDeg <<"#";
+    nErr = domeCommand(ssTmp.str(), sResp);
+    return nErr;
+
 }
 
 double CLunaticoBeaver::getHomeAz()
