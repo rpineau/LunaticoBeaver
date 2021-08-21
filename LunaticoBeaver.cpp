@@ -1595,7 +1595,7 @@ int CLunaticoBeaver::isCalibratingDomeComplete(bool &bComplete)
         ltime = time(NULL);
         timestamp = asctime(localtime(&ltime));
         timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::isCalibratingDomeComplete] final m_dStepsPerDeg = %d\n", timestamp, m_dStepsPerDeg);
+        fprintf(Logfile, "[%s] [CLunaticoBeaver::isCalibratingDomeComplete] final m_dStepsPerDeg = %3.2f\n", timestamp, m_dStepsPerDeg);
         fflush(Logfile);
 #endif
     }

@@ -222,12 +222,12 @@ int X2Dome::execModalSettingsDialog()
             dx->setText("shutterPresent", "<html><head/><body><p><span style=\" color:#00FF00;\">Detected</span></p></body></html>");
 
             m_LunaticoBeaver.getBatteryLevels( dShutterBattery, dShutterCutOff);
-            dx->setPropertyDouble("lowShutBatCutOff","value", dShutterCutOff);
+            dx->setPropertyDouble("lowShutBatCutOff", "value", dShutterCutOff);
 
             if(dShutterBattery>=0.0f)
-                snprintf(szTmpBuf,16,"%2.2f V",dShutterBattery);
+                snprintf(szTmpBuf,SERIAL_BUFFER_SIZE, "%2.2f V",dShutterBattery);
             else
-                snprintf(szTmpBuf,16,"--");
+                snprintf(szTmpBuf,SERIAL_BUFFER_SIZE, "--");
             dx->setPropertyString("shutterBatteryLevel","text", szTmpBuf);
 
         } else {
@@ -248,7 +248,7 @@ int X2Dome::execModalSettingsDialog()
         if(nErr)
             dx->setPropertyString("rainStatus","text", "--");
         else {
-            snprintf(szTmpBuf, 16, nRainSensorStatus==NOT_RAINING ? "Not raining" : "Raining");
+            snprintf(szTmpBuf, SERIAL_BUFFER_SIZE, nRainSensorStatus==NOT_RAINING ? "<html><head/><body><p><span style=\" color:#00FF00;\">Not raining</span></p></body></html>" : "<html><head/><body><p><span style=\" color:#FF0000;\">Raining</span></p></body></html>");
             dx->setPropertyString("rainStatus","text", szTmpBuf);
         }
 
@@ -428,9 +428,9 @@ void X2Dome::uiEvent(X2GUIExchangeInterface* uiex, const char* pszEvent)
                     if(dShutterCutOff < 1.0f) // not right.. ask again
                         m_LunaticoBeaver.getBatteryLevels(dShutterBattery, dShutterCutOff);
                         if(dShutterBattery>=0.0f)
-                            snprintf(szTmpBuf,16,"%2.2f V",dShutterBattery);
+                            snprintf(szTmpBuf,SERIAL_BUFFER_SIZE, "%2.2f V",dShutterBattery);
                         else
-                            snprintf(szTmpBuf,16,"--");
+                            snprintf(szTmpBuf,SERIAL_BUFFER_SIZE, "--");
                         uiex->setPropertyString("shutterBatteryLevel","text", szTmpBuf);
                         uiex->setPropertyDouble("lowShutBatCutOff","value", dShutterCutOff);
                 }
@@ -439,7 +439,7 @@ void X2Dome::uiEvent(X2GUIExchangeInterface* uiex, const char* pszEvent)
                 if(nErr)
                     uiex->setPropertyString("rainStatus","text", "--");
                 else {
-                    snprintf(szTmpBuf, 16, nRainSensorStatus==NOT_RAINING ? "Not raining" : "Raining");
+                    snprintf(szTmpBuf, SERIAL_BUFFER_SIZE, nRainSensorStatus==NOT_RAINING ? "<html><head/><body><p><span style=\" color:#00FF00;\">Not raining</span></p></body></html>" : "<html><head/><body><p><span style=\" color:#FF0000;\">Raining</span></p></body></html>");
                     uiex->setPropertyString("rainStatus","text", szTmpBuf);
                 }
 
