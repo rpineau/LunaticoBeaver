@@ -10,7 +10,7 @@
 ; NOTE: The value of AppId uniquely identifies this application.
 ; Do not use the same AppId value in installers for other applications.
 ; (To generate a new GUID, click Tools | Generate GUID inside the IDE.)
-AppId={{29FF7A64-21E6-44C2-871A-EB3A4410FC6E}
+AppId={{BA4F03A6-6F4D-4075-ADBF-AA11C413BC68}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 ;AppVerName={#MyAppName} {#MyAppVersion}
@@ -50,11 +50,13 @@ Source: "domelist LunaticoBeaver.txt";                              DestDir: "{a
 ; 32 bits
 Source: "libLunaticoBeaver\Win32\Release\libLunaticoBeaver.dll";    DestDir: "{app}\Plugins\DomePlugIns"; Flags: ignoreversion
 Source: "LunaticoBeaver.ui";                                        DestDir: "{app}\Plugins\DomePlugIns"; Flags: ignoreversion
-Source: "RTI-Zone.png";                                             DestDir: "{app}\Plugins\DomePlugIns"; Flags: ignoreversion
+Source: "NexDome.png";                                              DestDir: "{app}\Plugins\DomePlugIns"; Flags: ignoreversion
+Source: "Lunatico.png";                                             DestDir: "{app}\Plugins\DomePlugIns"; Flags: ignoreversion
 ; 64 bits
 Source: "libLunaticoBeaver\x64\Release\libLunaticoBeaver.dll";      DestDir: "{app}\Plugins64\DomePlugIns"; Flags: ignoreversion
 Source: "LunaticoBeaver.ui";                                        DestDir: "{app}\Plugins64\DomePlugIns"; Flags: ignoreversion
-Source: "RTI-Zone.png";                                             DestDir: "{app}\Plugins64\DomePlugIns"; Flags: ignoreversion
+Source: "NexDome.png";                                              DestDir: "{app}\Plugins64\DomePlugIns"; Flags: ignoreversion
+Source: "Lunatico.png";                                             DestDir: "{app}\Plugins64\DomePlugIns"; Flags: ignoreversion
 
 [Code]
 {* Below is a function to read TheSkyXInstallPath.txt and confirm that the directory does exist
