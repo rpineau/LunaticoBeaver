@@ -1,7 +1,7 @@
 #!/bin/bash
 
 PACKAGE_NAME="LunaticoBeaver_X2.pkg"
-BUNDLE_NAME="org.rti-zone.RTIDomeX2"
+BUNDLE_NAME="org.rti-zone.LunaticoBeaverX2"
 
 if [ ! -z "$app_id_signature" ]; then
     codesign -f -s "$app_id_signature" --verbose ../build/Release/libLunaticoBeaver.dylib
@@ -10,6 +10,7 @@ fi
 mkdir -p ROOT/tmp/LunaticoBeaver_X2/
 cp "../LunaticoBeaver.ui" ROOT/tmp/LunaticoBeaver_X2/
 cp "../Lunatico.png" ROOT/tmp/LunaticoBeaver_X2/
+cp "../NexDome.png" ROOT/tmp/LunaticoBeaver_X2/
 cp "../domelist LunaticoBeaver.txt" ROOT/tmp/LunaticoBeaver_X2/
 cp "../build/Release/libLunaticoBeaver.dylib" ROOT/tmp/LunaticoBeaver_X2/
 

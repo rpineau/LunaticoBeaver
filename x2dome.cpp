@@ -533,7 +533,7 @@ void X2Dome::deviceInfoNameLong(BasicStringInterface& str) const
 
 void X2Dome::deviceInfoDetailedDescription(BasicStringInterface& str) const
 {
-    str = "Lunatico Beaver Dome Controller for NexDome V4";
+    str = "Lunatico Beaver Dome Controller for NexDome";
 }
 
  void X2Dome::deviceInfoFirmwareVersion(BasicStringInterface& str)
@@ -552,7 +552,7 @@ void X2Dome::deviceInfoDetailedDescription(BasicStringInterface& str) const
 
 void X2Dome::deviceInfoModel(BasicStringInterface& str)
 {
-    str = "Lunatico Beaver Dome Controller for NexDome V4";
+    str = "Lunatico Beaver Dome Controller for NexDome";
 }
 
 //
@@ -562,7 +562,7 @@ void X2Dome::deviceInfoModel(BasicStringInterface& str)
 
  void	X2Dome::driverInfoDetailedInfo(BasicStringInterface& str) const
 {
-    str = "Lunatico Beaver Dome Controller for NexDome V4 X2 plugin by Rodolphe Pineau";
+    str = "Lunatico Beaver Dome Controller for NexDome X2 plugin by Rodolphe Pineau";
 }
 
 double	X2Dome::driverInfoVersion(void) const

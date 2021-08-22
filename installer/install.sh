@@ -35,13 +35,15 @@ fi
 cp -vf "./domelist LunaticoBeaver.txt" "$TheSkyX_Path/Resources/Common/Miscellaneous Files/"
 cp -vf "./LunaticoBeaver.ui" "$TheSkyX_Path/Resources/Common/$PLUGINS_DIR/DomePlugIns/"
 cp -vf "./Lunatico.png" "$TheSkyX_Path/Resources/Common/$PLUGINS_DIR/DomePlugIns/"
+cp -vf "./NexDome.png" "$TheSkyX_Path/Resources/Common/$PLUGINS_DIR/DomePlugIns/"
 cp -vf "./libLunaticoBeaver.so" "$TheSkyX_Path/Resources/Common/$PLUGINS_DIR/DomePlugIns/"
 
 app_owner=`/usr/bin/stat -c "%u" "$TheSkyX_Path" | xargs id -n -u`
 if [ ! -z "$app_owner" ]; then
 	chown $app_owner "$TheSkyX_Path/Resources/Common/Miscellaneous Files/domelist LunaticoBeaver.txt"
+	chown $app_owner "$TheSkyX_Path/Resources/Common/$PLUGINS_DIR/DomePlugIns/Lunatico.png"
+	chown $app_owner "$TheSkyX_Path/Resources/Common/$PLUGINS_DIR/DomePlugIns/NexDome.png"
 	chown $app_owner "$TheSkyX_Path/Resources/Common/$PLUGINS_DIR/DomePlugIns/LunaticoBeaver.ui"
-	chown $app_owner "$TheSkyX_Path/Resources/Common/$PLUGINS_DIR/DomePlugIns/RTI-Zone.png"
 	chown $app_owner "$TheSkyX_Path/Resources/Common/$PLUGINS_DIR/DomePlugIns/libLunaticoBeaver.so"
 fi
 chmod  755 "$TheSkyX_Path/Resources/Common/$PLUGINS_DIR/DomePlugIns/libLunaticoBeaver.so"
