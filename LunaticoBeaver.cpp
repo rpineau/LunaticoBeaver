@@ -592,7 +592,7 @@ int CLunaticoBeaver::getBatteryLevels(double &dShutterVolts, double &dShutterCut
         
         parseFields(sResp, svFields, ':');
         if(svFields.size()>=2) {
-            dShutterVolts = std::stoi(svFields[1]);
+            dShutterVolts = std::stof(svFields[1]);
         }
 
         nErr = shutterCommand("shutter getsafevoltage", sResp);
@@ -609,7 +609,7 @@ int CLunaticoBeaver::getBatteryLevels(double &dShutterVolts, double &dShutterCut
         
         parseFields(sResp, svFields, ':');
         if(svFields.size()>=2) {
-            dShutterCutOff = std::stoi(svFields[1]);
+            dShutterCutOff = std::stof(svFields[1]);
         }
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
         ltime = time(NULL);
