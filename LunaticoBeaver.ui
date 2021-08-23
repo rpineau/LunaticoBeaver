@@ -58,7 +58,7 @@
         <x>16</x>
         <y>97</y>
         <width>298</width>
-        <height>176</height>
+        <height>192</height>
        </rect>
       </property>
       <property name="title">
@@ -132,7 +132,7 @@
        <property name="geometry">
         <rect>
          <x>16</x>
-         <y>136</y>
+         <y>152</y>
          <width>264</width>
          <height>24</height>
         </rect>
@@ -148,13 +148,26 @@
        <property name="geometry">
         <rect>
          <x>16</x>
-         <y>104</y>
+         <y>128</y>
          <width>192</width>
          <height>24</height>
         </rect>
        </property>
        <property name="text">
         <string>Log rain sensor state</string>
+       </property>
+      </widget>
+      <widget class="QCheckBox" name="checkBox_2">
+       <property name="geometry">
+        <rect>
+         <x>16</x>
+         <y>104</y>
+         <width>208</width>
+         <height>20</height>
+        </rect>
+       </property>
+       <property name="text">
+        <string>Shutter controller present</string>
        </property>
       </widget>
      </widget>
@@ -505,7 +518,7 @@
       <property name="geometry">
        <rect>
         <x>80</x>
-        <y>416</y>
+        <y>432</y>
         <width>80</width>
         <height>24</height>
        </rect>
@@ -518,7 +531,7 @@
       <property name="geometry">
        <rect>
         <x>184</x>
-        <y>416</y>
+        <y>432</y>
         <width>80</width>
         <height>24</height>
        </rect>
@@ -534,7 +547,7 @@
       <property name="geometry">
        <rect>
         <x>16</x>
-        <y>288</y>
+        <y>304</y>
         <width>298</width>
         <height>112</height>
        </rect>

@@ -176,8 +176,8 @@ int CLunaticoBeaver::Connect(const char *pszPort)
 #endif
         return nErr;
     }
-    if(m_bShutterPresent)
-        setShutterPresent(m_bShutterPresent);
+
+    getShutterPresent(m_bShutterPresent);
 
     
     return SB_OK;
@@ -2157,109 +2157,6 @@ int CLunaticoBeaver::setShutterSpeed(int nMinSpeed, int nMaxSpeed, int nAccel)
         return nErr;
 
     return nErr;
-}
-
-
-void CLunaticoBeaver::setHomeOnPark(const bool bEnabled)
-{
-    m_bHomeOnPark = bEnabled;
-}
-
-void CLunaticoBeaver::setHomeOnUnpark(const bool bEnabled)
-{
-    m_bHomeOnUnpark = bEnabled;
-}
-
-int	CLunaticoBeaver::getSutterWatchdogTimerValue(int &nValue)
-{
-	int nErr = PLUGIN_OK;
-	std::string sResp;
-
-	if(!m_bIsConnected)
-		return NOT_CONNECTED;
-
-    if(!m_bShutterPresent) {
-        nValue = 0;
-        return SB_OK;
-    }
-
-/*
-	nErr = domeCommand("I#", sResp);
-	if(nErr) {
-		return nErr;
-	}
-
-	nValue = atoi(szResp)/1000; // value is in ms
-*/
- #ifdef PLUGIN_DEBUG
-	ltime = time(NULL);
-	timestamp = asctime(localtime(&ltime));
-	timestamp[strlen(timestamp) - 1] = 0;
-	fprintf(Logfile, "[%s] [CLunaticoBeaver::getSutterWatchdogTimerValue] nValue =  %d\n", timestamp, nValue);
-	fflush(Logfile);
-#endif
-	return nErr;
-}
-
-int	CLunaticoBeaver::setSutterWatchdogTimerValue(const int &nValue)
-{
-	int nErr = PLUGIN_OK;
-	char szBuf[SERIAL_BUFFER_SIZE];
-	std::string sResp;
-
-	if(!m_bIsConnected)
-		return NOT_CONNECTED;
-
-    if(!m_bShutterPresent) {
-        return SB_OK;
-    }
-
-	
-	snprintf(szBuf, SERIAL_BUFFER_SIZE, "I%d#", nValue * 1000); // value is in ms
-	nErr = domeCommand(szBuf, sResp);
-	return nErr;
-}
-
-int CLunaticoBeaver::getRainAction(int &nAction)
-{
-    int nErr = PLUGIN_OK;
-    std::string sResp;
-
-    if(!m_bIsConnected)
-        return NOT_CONNECTED;
-/*
-    nErr = domeCommand("n#", sResp);
-    if(nErr) {
-        return nErr;
-    }
-
-    nAction = atoi(szResp);
-*/
-
- #ifdef PLUGIN_DEBUG
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::getRainTimerValue] nValue =  %d\n", timestamp, nAction);
-    fflush(Logfile);
-#endif
-    return nErr;
-
-}
-
-int CLunaticoBeaver::setRainAction(const int &nAction)
-{
-    int nErr = PLUGIN_OK;
-    char szBuf[SERIAL_BUFFER_SIZE];
-    std::string sResp;
-
-    if(!m_bIsConnected)
-        return NOT_CONNECTED;
-
-    snprintf(szBuf, SERIAL_BUFFER_SIZE, "n%d#", nAction);
-    nErr = domeCommand(szBuf, sResp);
-    return nErr;
-
 }
 
 

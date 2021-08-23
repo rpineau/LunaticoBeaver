@@ -157,16 +157,6 @@ public:
 
     int getShutterSpeed(int &nMinSpeed, int &nMaxSpeed, int &nAccel);
     int setShutterSpeed(int nMinSpeed, int nMaxSpeed, int nAccel);
-
-    void setHomeOnPark(const bool bEnabled);
-    void setHomeOnUnpark(const bool bEnabled);
-
-	int	getSutterWatchdogTimerValue(int &nValue);
-	int	setSutterWatchdogTimerValue(const int &nValue);
-
-    int getRainAction(int &nAction);
-    int setRainAction(const int &nAction);
-    
     
     void enableRainStatusFile(bool bEnable);
     void getRainStatusFileName(std::string &fName);
@@ -232,7 +222,7 @@ protected:
 
     int             m_nDomeRotStatus;
     int             m_nShutStatus;
-    
+
     std::string     m_sRainStatusfilePath;
     FILE            *RainStatusfile;
     bool            m_bSaveRainStatus;
