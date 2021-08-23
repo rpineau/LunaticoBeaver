@@ -130,6 +130,7 @@ public:
     int abortCurrentCommand();
     int getShutterPresent(bool &bShutterPresent);
     int setShutterPresent(bool bShutterPresent);
+    int isShutterDetected(bool &bDetected);
 
     // getter/setter
     int getDomeStepPerRev();

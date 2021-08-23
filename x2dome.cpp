@@ -133,7 +133,8 @@ int X2Dome::execModalSettingsDialog()
     int nSMaxSpeed;
     int nSAcc;
     double  batShutCutOff;
-    
+    bool bShutterDetected;
+
     if (NULL == ui)
         return ERR_POINTER;
 
@@ -182,8 +183,9 @@ int X2Dome::execModalSettingsDialog()
         dx->setEnabled("rotationAcceletation",true);
         dx->setPropertyInt("rotationAcceletation","value", nRAcc);
 
+        m_LunaticoBeaver.isShutterDetected(bShutterDetected);
 
-        if(m_bHasShutterControl) {
+        if(m_bHasShutterControl && bShutterDetected) {
             dx->setEnabled("pushButton_3", true);
             m_LunaticoBeaver.getShutterSpeed(nSMinSpeed, nSMaxSpeed, nSAcc);
 
@@ -209,7 +211,6 @@ int X2Dome::execModalSettingsDialog()
             dx->setPropertyString("shutterBatteryLevel","text", szTmpBuf);
 
         } else {
-            dx->setEnabled("checkBox_2",false);
             dx->setEnabled("shutterMinSpeed",false);
             dx->setPropertyInt("shutterMinSpeed","value",0);
             dx->setEnabled("shutterSpeed",false);
@@ -308,48 +309,46 @@ void X2Dome::uiEvent(X2GUIExchangeInterface* uiex, const char* pszEvent)
     char szTmpBuf[SERIAL_BUFFER_SIZE];
     char szErrorMessage[LOG_BUFFER_SIZE];
     std::string fName;
-    int nRainSensorStatus = NOT_RAINING;
-    bool bShutterPresent;
     int nMinSpeed;
     int nMaxSpeed;
     int nAcc;
     int nSMinSpeed;
     int nSMaxSpeed;
     int nSAcc;
+    int nRainSensorStatus = NOT_RAINING;
+    bool bShutterPresent = false;
+    bool bShutterDetected = false;
 
     if (!strcmp(pszEvent, "on_pushButtonCancel_clicked") && (m_bCalibratingDome || m_bCalibratingShutter))
         m_LunaticoBeaver.abortCurrentCommand();
 
     if (!strcmp(pszEvent, "on_timer"))
     {
-        bShutterPresent = uiex->isChecked("hasShutterCtrl");
-        m_LunaticoBeaver.getShutterPresent(bShutterPresent);
-
-        if(bShutterPresent != m_bHasShutterControl) {
-            m_bHasShutterControl = bShutterPresent;
-            if(m_bHasShutterControl && m_bLinked) {
-                uiex->setText("shutterPresent", "<html><head/><body><p><span style=\" color:#00FF00;\">Detected</span></p></body></html>");
-                m_LunaticoBeaver.getShutterSpeed(nMinSpeed, nMaxSpeed, nAcc);
-                uiex->setEnabled("shutterMinSpeed",true);
-                uiex->setPropertyInt("shutterMinSpeed","value", nMinSpeed);
-                uiex->setEnabled("shutterSpeed",true);
-                uiex->setPropertyInt("shutterSpeed","value", nMaxSpeed);
-                uiex->setEnabled("shutterAcceleration",true);
-                uiex->setPropertyInt("shutterAcceleration","value", nAcc);
-
-            }
-            else {
-                uiex->setText("shutterPresent", "<html><head/><body><p><span style=\" color:#FF0000;\">Not detected</span></p></body></html>");
-                uiex->setPropertyInt("shutterMinSpeed","value", 0);
-                uiex->setPropertyInt("shutterSpeed","value", 0);
-                uiex->setPropertyInt("shutterAcceleration","value", 0);
-                uiex->setEnabled("shutterMinSpeed",false);
-                uiex->setEnabled("shutterSpeed",false);
-                uiex->setEnabled("shutterAcceleration",false);
-                uiex->setPropertyString("shutterBatteryLevel","text", "--");
-            }
+        m_bHasShutterControl = (uiex->isChecked("checkBox_2") ==1);
+        if(m_bHasShutterControl)
+            m_LunaticoBeaver.isShutterDetected(bShutterDetected);
+        if(bShutterDetected) {
+            uiex->setText("shutterPresent", "<html><head/><body><p><span style=\" color:#00FF00;\">Detected</span></p></body></html>");
+            m_LunaticoBeaver.getShutterSpeed(nMinSpeed, nMaxSpeed, nAcc);
+            uiex->setEnabled("shutterMinSpeed",true);
+            uiex->setPropertyInt("shutterMinSpeed","value", nMinSpeed);
+            uiex->setEnabled("shutterSpeed",true);
+            uiex->setPropertyInt("shutterSpeed","value", nMaxSpeed);
+            uiex->setEnabled("shutterAcceleration",true);
+            uiex->setPropertyInt("shutterAcceleration","value", nAcc);
 
         }
+        else {
+            uiex->setText("shutterPresent", "<html><head/><body><p><span style=\" color:#FF0000;\">Not detected</span></p></body></html>");
+            uiex->setPropertyInt("shutterMinSpeed","value", 0);
+            uiex->setPropertyInt("shutterSpeed","value", 0);
+            uiex->setPropertyInt("shutterAcceleration","value", 0);
+            uiex->setEnabled("shutterMinSpeed",false);
+            uiex->setEnabled("shutterSpeed",false);
+            uiex->setEnabled("shutterAcceleration",false);
+            uiex->setPropertyString("shutterBatteryLevel","text", "--");
+        }
+
         if(m_bLinked) {
            if(m_bCalibratingDome) {
                 // are we still calibrating ?
@@ -498,7 +497,9 @@ void X2Dome::uiEvent(X2GUIExchangeInterface* uiex, const char* pszEvent)
     if (!strcmp(pszEvent, "on_checkBox_2_stateChanged")) {
         bShutterPresent = uiex->isChecked("checkBox_2");
         m_LunaticoBeaver.setShutterPresent(bShutterPresent);
-        if(bShutterPresent) {
+        m_pSleeper->sleep(250);
+        m_LunaticoBeaver.isShutterDetected(bShutterDetected);
+        if(bShutterPresent && bShutterDetected) {
             uiex->setEnabled("pushButton_3", true);
             m_LunaticoBeaver.getShutterSpeed(nSMinSpeed, nSMaxSpeed, nSAcc);
 
