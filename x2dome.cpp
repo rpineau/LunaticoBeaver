@@ -33,12 +33,7 @@ X2Dome::X2Dome(const char* pszSelection, const int& nISIndex,
     if (m_pIniUtil)
     {
         m_bLogRainStatus = m_pIniUtil->readInt(PARENT_KEY, CHILD_KEY_LOG_RAIN_STATUS, false);
-        m_bHomeOnPark = m_pIniUtil->readInt(PARENT_KEY, CHILD_KEY_HOME_ON_PARK, false);
-        m_bHomeOnUnpark = m_pIniUtil->readInt(PARENT_KEY, CHILD_KEY_HOME_ON_UNPARK, false);
-        m_LunaticoBeaver.setHomeOnPark(m_bHomeOnPark);
-        m_LunaticoBeaver.setHomeOnUnpark(m_bHomeOnUnpark);
         m_LunaticoBeaver.enableRainStatusFile(m_bLogRainStatus);
-        m_LunaticoBeaver.setShutterPresent(true);
     }
 }
 
@@ -152,27 +147,6 @@ int X2Dome::execModalSettingsDialog()
     m_LunaticoBeaver.getShutterPresent(m_bHasShutterControl);
 
     memset(szTmpBuf,0,SERIAL_BUFFER_SIZE);
-    // set controls state depending on the connection state
-    if(m_bHasShutterControl) {
-        dx->setChecked("hasShutterCtrl",true);
-    }
-    else {
-        dx->setChecked("hasShutterCtrl",false);
-    }
-
-    if(m_bHomeOnPark) {
-        dx->setChecked("homeOnPark",true);
-    }
-    else {
-        dx->setChecked("homeOnPark",false);
-    }
-
-    if(m_bHomeOnUnpark) {
-        dx->setChecked("homeOnUnpark",true);
-    }
-    else {
-        dx->setChecked("homeOnUnpark",false);
-    }
 
     if(m_bLogRainStatus) {
         dx->setChecked("checkBox",true);
@@ -187,6 +161,10 @@ int X2Dome::execModalSettingsDialog()
     if(m_bLinked) {
         dx->setEnabled("homePosition",true);
         dx->setEnabled("parkPosition",true);
+
+        dx->setEnabled("checkBox_2",true);
+        // set controls state depending on the connection state
+        dx->setChecked("checkBox_2",m_bHasShutterControl?true:false);
 
         // read values from dome controller
         dx->setEnabled("ticksPerRev",true);
@@ -231,6 +209,7 @@ int X2Dome::execModalSettingsDialog()
             dx->setPropertyString("shutterBatteryLevel","text", szTmpBuf);
 
         } else {
+            dx->setEnabled("checkBox_2",false);
             dx->setEnabled("shutterMinSpeed",false);
             dx->setPropertyInt("shutterMinSpeed","value",0);
             dx->setEnabled("shutterSpeed",false);
@@ -314,8 +293,6 @@ int X2Dome::execModalSettingsDialog()
         // save settings to eeprom
         m_LunaticoBeaver.saveSettingsToEEProm();
         // save the values to persistent storage
-        nErr |= m_pIniUtil->writeInt(PARENT_KEY, CHILD_KEY_HOME_ON_PARK, m_bHomeOnPark);
-        nErr |= m_pIniUtil->writeInt(PARENT_KEY, CHILD_KEY_HOME_ON_UNPARK, m_bHomeOnUnpark);
         nErr |= m_pIniUtil->writeInt(PARENT_KEY, CHILD_KEY_LOG_RAIN_STATUS, m_bLogRainStatus);
     }
     return nErr;
@@ -335,6 +312,10 @@ void X2Dome::uiEvent(X2GUIExchangeInterface* uiex, const char* pszEvent)
     int nMinSpeed;
     int nMaxSpeed;
     int nAcc;
+    int nSMinSpeed;
+    int nSMaxSpeed;
+    int nSAcc;
+    double  batShutCutOff;
 
     if (!strcmp(pszEvent, "on_pushButtonCancel_clicked") && (m_bCalibratingDome || m_bCalibratingShutter))
         m_LunaticoBeaver.abortCurrentCommand();
@@ -511,6 +492,36 @@ void X2Dome::uiEvent(X2GUIExchangeInterface* uiex, const char* pszEvent)
         }
         else {
             uiex->setPropertyString("filePath","text", "");
+        }
+    }
+
+    if (!strcmp(pszEvent, "on_checkBox_2_stateChanged")) {
+        bShutterPresent = uiex->isChecked("checkBox_2");
+        m_LunaticoBeaver.setShutterPresent(bShutterPresent);
+        if(bShutterPresent) {
+            uiex->setEnabled("pushButton_3", true);
+            m_LunaticoBeaver.getShutterSpeed(nSMinSpeed, nSMaxSpeed, nSAcc);
+
+            uiex->setEnabled("shutterMinSpeed",true);
+            uiex->setPropertyInt("shutterMinSpeed","value", nSMinSpeed);
+
+            uiex->setEnabled("shutterSpeed",true);
+            uiex->setPropertyInt("shutterSpeed","value", nSMaxSpeed);
+
+            uiex->setEnabled("shutterAcceleration",true);
+            uiex->setPropertyInt("shutterAcceleration","value", nSAcc);
+
+            uiex->setEnabled("lowShutBatCutOff",true);
+            uiex->setText("shutterPresent", "<html><head/><body><p><span style=\" color:#00FF00;\">Detected</span></p></body></html>");
+
+            m_LunaticoBeaver.getBatteryLevels( dShutterBattery, dShutterCutOff);
+            uiex->setPropertyDouble("lowShutBatCutOff", "value", dShutterCutOff);
+
+            if(dShutterBattery>=0.0f)
+                snprintf(szTmpBuf,SERIAL_BUFFER_SIZE, "%2.2f V",dShutterBattery);
+            else
+                snprintf(szTmpBuf,SERIAL_BUFFER_SIZE, "--");
+            uiex->setPropertyString("shutterBatteryLevel","text", szTmpBuf);
         }
     }
 
