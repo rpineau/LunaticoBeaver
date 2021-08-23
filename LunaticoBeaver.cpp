@@ -374,7 +374,18 @@ int CLunaticoBeaver::getDomeAz(double &dDomeAz)
     // convert Az string to double
     parseFields(sResp, svFields, ':');
     if(svFields.size()>=2) {
-        dDomeAz = std::stod(svFields[1]);
+        try {
+            dDomeAz = std::stod(svFields[1]);
+        }
+        catch(const std::exception& e) {
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+            ltime = time(NULL);
+            timestamp = asctime(localtime(&ltime));
+            timestamp[strlen(timestamp) - 1] = 0;
+            fprintf(Logfile, "[%s] [CLunaticoBeaver::getDomeAz] conversion exception = %s\n", timestamp, e.what());
+#endif
+            return ERR_CMDFAILED;
+        }
         m_dCurrentAzPosition = dDomeAz;
     }
     if(m_cRainCheckTimer.GetElapsedSeconds() > RAIN_CHECK_INTERVAL) {
@@ -446,7 +457,18 @@ int CLunaticoBeaver::getDomeHomeAz(double &dAz)
     // convert Az string to double
     parseFields(sResp, svFields, ':');
     if(svFields.size()>=2) {
-        dAz = std::stod(svFields[1]);
+        try {
+            dAz = std::stod(svFields[1]);
+        }
+        catch(const std::exception& e) {
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+            ltime = time(NULL);
+            timestamp = asctime(localtime(&ltime));
+            timestamp[strlen(timestamp) - 1] = 0;
+            fprintf(Logfile, "[%s] [CLunaticoBeaver::getDomeHomeAz] conversion exception = %s\n", timestamp, e.what());
+#endif
+            return ERR_CMDFAILED;
+        }
     }
 
     m_dHomeAz = dAz;
@@ -490,7 +512,18 @@ int CLunaticoBeaver::getDomeParkAz(double &dAz)
     // convert Az string to double
     parseFields(sResp, svFields, ':');
     if(svFields.size()>=2) {
-        dAz = std::stod(svFields[1]);
+        try {
+            dAz = std::stod(svFields[1]);
+        }
+        catch(const std::exception& e) {
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+            ltime = time(NULL);
+            timestamp = asctime(localtime(&ltime));
+            timestamp[strlen(timestamp) - 1] = 0;
+            fprintf(Logfile, "[%s] [CLunaticoBeaver::getDomeParkAz] conversion exception = %s\n", timestamp, e.what());
+#endif
+            return ERR_CMDFAILED;
+        }
     }
     m_dParkAz = dAz;
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
@@ -547,7 +580,18 @@ int CLunaticoBeaver::getShutterState(int &nState)
 
     parseFields(sResp, shutterStateFileds, ':');
     if(shutterStateFileds.size()>=2) {
-        nState = std::stoi(shutterStateFileds[1]);
+        try {
+            nState = std::stoi(shutterStateFileds[1]);
+        }
+        catch(const std::exception& e) {
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+            ltime = time(NULL);
+            timestamp = asctime(localtime(&ltime));
+            timestamp[strlen(timestamp) - 1] = 0;
+            fprintf(Logfile, "[%s] [CLunaticoBeaver::getShutterState] conversion exception = %s\n", timestamp, e.what());
+#endif
+            return ERR_CMDFAILED;
+        }
     }
 
 
@@ -592,7 +636,19 @@ int CLunaticoBeaver::getBatteryLevels(double &dShutterVolts, double &dShutterCut
         
         parseFields(sResp, svFields, ':');
         if(svFields.size()>=2) {
-            dShutterVolts = std::stoi(svFields[1]);
+            try {
+                dShutterVolts = std::stof(svFields[1]);
+            }
+            catch(const std::exception& e) {
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+                ltime = time(NULL);
+                timestamp = asctime(localtime(&ltime));
+                timestamp[strlen(timestamp) - 1] = 0;
+                fprintf(Logfile, "[%s] [CLunaticoBeaver::getBatteryLevels] conversion exception = %s\n", timestamp, e.what());
+#endif
+                return ERR_CMDFAILED;
+            }
+
         }
 
         nErr = shutterCommand("shutter getsafevoltage", sResp);
@@ -609,7 +665,18 @@ int CLunaticoBeaver::getBatteryLevels(double &dShutterVolts, double &dShutterCut
         
         parseFields(sResp, svFields, ':');
         if(svFields.size()>=2) {
-            dShutterCutOff = std::stoi(svFields[1]);
+            try {
+                dShutterCutOff = std::stof(svFields[1]);
+            }
+            catch(const std::exception& e) {
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+                ltime = time(NULL);
+                timestamp = asctime(localtime(&ltime));
+                timestamp[strlen(timestamp) - 1] = 0;
+                fprintf(Logfile, "[%s] [CLunaticoBeaver::getBatteryLevels] conversion exception = %s\n", timestamp, e.what());
+#endif
+                return ERR_CMDFAILED;
+            }
         }
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
         ltime = time(NULL);
@@ -669,7 +736,7 @@ int CLunaticoBeaver::getDomeStatus(int &nStatus)
         ltime = time(NULL);
         timestamp = asctime(localtime(&ltime));
         timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::isDomeMoving] ERROR = %s\n", timestamp, sResp.c_str());
+        fprintf(Logfile, "[%s] [CLunaticoBeaver::getDomeStatus] ERROR = %s\n", timestamp, sResp.c_str());
         fflush(Logfile);
 #endif
         return nErr;
@@ -678,7 +745,18 @@ int CLunaticoBeaver::getDomeStatus(int &nStatus)
     // need to parse sResp
     parseFields(sResp, svFields, ':');
     if(svFields.size()>=1) {
-        nStatus = std::stoi(svFields[1]);
+        try {
+            nStatus = std::stoi(svFields[1]);
+        }
+        catch(const std::exception& e) {
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+            ltime = time(NULL);
+            timestamp = asctime(localtime(&ltime));
+            timestamp[strlen(timestamp) - 1] = 0;
+            fprintf(Logfile, "[%s] [CLunaticoBeaver::getDomeStatus] conversion exception = %s\n", timestamp, e.what());
+#endif
+            return ERR_CMDFAILED;
+        }
     }
 
     m_nDomeRotStatus = nStatus & DOME_STATUS_MASK;
@@ -728,7 +806,18 @@ bool CLunaticoBeaver::isDomeAtHome()
     bAthome = false;
     parseFields(sResp, svFields, ':');
     if(svFields.size()>=1) {
-        nTmp = std::stoi(svFields[1]);
+        try {
+            nTmp = std::stoi(svFields[1]);
+        }
+        catch(const std::exception& e) {
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+            ltime = time(NULL);
+            timestamp = asctime(localtime(&ltime));
+            timestamp[strlen(timestamp) - 1] = 0;
+            fprintf(Logfile, "[%s] [CLunaticoBeaver::isDomeAtHome] conversion exception = %s\n", timestamp, e.what());
+#endif
+            return ERR_CMDFAILED;
+        }
     }
     else
         nTmp = 0;
@@ -1572,7 +1661,18 @@ int CLunaticoBeaver::isCalibratingDomeComplete(bool &bComplete)
 
     parseFields(sResp, svFields, ':');
     if(svFields.size()>=2) {
-        nTmp = std::stoi(svFields[1]);
+        try {
+            nTmp = std::stoi(svFields[1]);
+        }
+        catch(const std::exception& e) {
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+            ltime = time(NULL);
+            timestamp = asctime(localtime(&ltime));
+            timestamp[strlen(timestamp) - 1] = 0;
+            fprintf(Logfile, "[%s] [CLunaticoBeaver::isCalibratingDomeComplete] conversion exception = %s\n", timestamp, e.what());
+#endif
+            return ERR_CMDFAILED;
+        }
         switch(nTmp) {
             case 0:
                 bComplete = true;
@@ -1631,7 +1731,18 @@ int CLunaticoBeaver::isCalibratingShutterComplete(bool &bComplete)
 
     parseFields(sResp, svFields, ':');
     if(svFields.size()>=2) {
-        nTmp = std::stoi(svFields[1]);
+        try {
+            nTmp = std::stoi(svFields[1]);
+        }
+        catch(const std::exception& e) {
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+            ltime = time(NULL);
+            timestamp = asctime(localtime(&ltime));
+            timestamp[strlen(timestamp) - 1] = 0;
+            fprintf(Logfile, "[%s] [CLunaticoBeaver::isCalibratingShutterComplete] conversion exception = %s\n", timestamp, e.what());
+#endif
+            return ERR_CMDFAILED;
+        }
         switch(nTmp) {
             case 0:
                 bComplete = true;
@@ -1692,6 +1803,8 @@ int CLunaticoBeaver::getShutterPresent(bool &bShutterPresent)
     std::string sResp;
     std::vector<std::string> svFields;
 
+    bShutterPresent = false;
+
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
@@ -1702,12 +1815,22 @@ int CLunaticoBeaver::getShutterPresent(bool &bShutterPresent)
     if(nErr) {
         return nErr;
     }
-    m_bShutterPresent = false;
 
     // convert Az string to double
     parseFields(sResp, svFields, ':');
     if(svFields.size()>=2) {
-        bShutterPresent = (std::stoi(svFields[1])==1);
+        try {
+            bShutterPresent = (std::stoi(svFields[1])==1);
+        }
+        catch(const std::exception& e) {
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+            ltime = time(NULL);
+            timestamp = asctime(localtime(&ltime));
+            timestamp[strlen(timestamp) - 1] = 0;
+            fprintf(Logfile, "[%s] [CLunaticoBeaver::getShutterPresent] conversion exception = %s\n", timestamp, e.what());
+#endif
+            return ERR_CMDFAILED;
+        }
         m_bShutterPresent = bShutterPresent;
     }
 
@@ -1736,7 +1859,7 @@ int CLunaticoBeaver::setShutterPresent(bool bShutterPresent)
         return NOT_CONNECTED;
     }
 
-    ssTmp<<"!domerot setshutterenable " << (bShutterPresent?"1":"0") << "#";
+    ssTmp<<"!dome setshutterenable " << (bShutterPresent?"1":"0") << "#";
     nErr = domeCommand(ssTmp.str(), sResp);
     if(nErr)
         return nErr;
@@ -1754,6 +1877,73 @@ int CLunaticoBeaver::saveSettingsToEEProm()
     return nErr;
 }
 
+int CLunaticoBeaver::isShutterDetected(bool &bDetected)
+{
+    int nErr = PLUGIN_OK;
+    std::string sResp;
+    std::vector<std::string> firmwareFields;
+
+    bDetected = false;
+
+    if(!m_bIsConnected)
+        return NOT_CONNECTED;
+
+    if(m_bCalibrating)
+        return nErr;
+
+    nErr = shutterCommand("!seletek version#", sResp);
+    if(nErr)
+        return nErr;
+#ifdef PLUGIN_DEBUG
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CLunaticoBeaver::isShutterDetected] szFirmware = %s\n", timestamp, sResp.c_str());
+    fflush(Logfile);
+#endif
+
+    nErr = parseFields(sResp, firmwareFields, ':');
+    if(nErr) {
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+        ltime = time(NULL);
+        timestamp = asctime(localtime(&ltime));
+        timestamp[strlen(timestamp) - 1] = 0;
+        fprintf(Logfile, "[%s] [CLunaticoBeaver::isShutterDetected] parsing error = %s\n", timestamp, sResp.c_str());
+        fflush(Logfile);
+#endif
+        return ERR_CMDFAILED;
+    }
+
+    if(firmwareFields.size()>=2) {
+#ifdef PLUGIN_DEBUG
+        ltime = time(NULL);
+        timestamp = asctime(localtime(&ltime));
+        timestamp[strlen(timestamp) - 1] = 0;
+        fprintf(Logfile, "[%s] [CLunaticoBeaver::isShutterDetected] sResp.size() = %lu\n", timestamp, sResp.size());
+        fprintf(Logfile, "[%s] [CLunaticoBeaver::isShutterDetected] sResp = %s\n", timestamp, sResp.c_str());
+        fprintf(Logfile, "[%s] [CLunaticoBeaver::isShutterDetected] sResp.find(\"error\") = %lu\n", timestamp, sResp.find("error"));
+        fflush(Logfile);
+#endif
+        if(firmwareFields[1].size()>5 && firmwareFields[1].find("error") == 0) {
+            bDetected = false;
+        }
+        else {
+            bDetected = true;
+        }
+    }
+
+
+#ifdef PLUGIN_DEBUG
+    ltime = time(NULL);
+    timestamp = asctime(localtime(&ltime));
+    timestamp[strlen(timestamp) - 1] = 0;
+    fprintf(Logfile, "[%s] [CLunaticoBeaver::isShutterDetected] bDetected = %s\n", timestamp, bDetected?"True":"False");
+    fflush(Logfile);
+#endif
+
+    return nErr;
+
+}
 #pragma mark - Getter / Setter
 
 int CLunaticoBeaver::getDomeStepPerRev()
@@ -1827,7 +2017,18 @@ int CLunaticoBeaver::getDomeStepPerDeg(double &dStepsPerDeg)
 
     parseFields(sResp, svFields, ':');
     if(svFields.size()>=2) {
-        dStepsPerDeg = std::stof(svFields[1]);
+        try {
+            dStepsPerDeg = std::stof(svFields[1]);
+        }
+        catch(const std::exception& e) {
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+            ltime = time(NULL);
+            timestamp = asctime(localtime(&ltime));
+            timestamp[strlen(timestamp) - 1] = 0;
+            fprintf(Logfile, "[%s] [CLunaticoBeaver::getDomeStepPerDeg] conversion exception = %s\n", timestamp, e.what());
+#endif
+            return ERR_CMDFAILED;
+        }
     }
 
     m_dStepsPerDeg = dStepsPerDeg;
@@ -1978,7 +2179,18 @@ int CLunaticoBeaver::getRotationSpeed(int &nMinSpeed, int &nMaxSpeed, int &nAcce
     // convert Az string to double
     parseFields(sResp, svFields, ':');
     if(svFields.size()>=2) {
-        nMinSpeed = std::stod(svFields[1]);
+        try {
+            nMinSpeed = std::stod(svFields[1]);
+        }
+        catch(const std::exception& e) {
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+            ltime = time(NULL);
+            timestamp = asctime(localtime(&ltime));
+            timestamp[strlen(timestamp) - 1] = 0;
+            fprintf(Logfile, "[%s] [CLunaticoBeaver::getRotationSpeed] conversion exception = %s\n", timestamp, e.what());
+#endif
+            return ERR_CMDFAILED;
+        }
     }
 
     nErr = domeCommand("!domerot getmaxspeed#", sResp);
@@ -1995,7 +2207,18 @@ int CLunaticoBeaver::getRotationSpeed(int &nMinSpeed, int &nMaxSpeed, int &nAcce
     // convert Az string to double
     parseFields(sResp, svFields, ':');
     if(svFields.size()>=2) {
-        nMaxSpeed = std::stod(svFields[1]);
+        try {
+            nMaxSpeed = std::stod(svFields[1]);
+        }
+        catch(const std::exception& e) {
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+            ltime = time(NULL);
+            timestamp = asctime(localtime(&ltime));
+            timestamp[strlen(timestamp) - 1] = 0;
+            fprintf(Logfile, "[%s] [CLunaticoBeaver::getRotationSpeed] conversion exception = %s\n", timestamp, e.what());
+#endif
+            return ERR_CMDFAILED;
+        }
     }
 
     nErr = domeCommand("!domerot getacceleration#", sResp);
@@ -2012,7 +2235,18 @@ int CLunaticoBeaver::getRotationSpeed(int &nMinSpeed, int &nMaxSpeed, int &nAcce
     // convert Az string to double
     parseFields(sResp, svFields, ':');
     if(svFields.size()>=2) {
-        nAccel = std::stod(svFields[1]);
+        try {
+            nAccel = std::stod(svFields[1]);
+        }
+        catch(const std::exception& e) {
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+            ltime = time(NULL);
+            timestamp = asctime(localtime(&ltime));
+            timestamp[strlen(timestamp) - 1] = 0;
+            fprintf(Logfile, "[%s] [CLunaticoBeaver::getRotationSpeed] conversion exception = %s\n", timestamp, e.what());
+#endif
+            return ERR_CMDFAILED;
+        }
     }
 
 
@@ -2072,7 +2306,7 @@ int CLunaticoBeaver::getShutterSpeed(int &nMinSpeed, int &nMaxSpeed, int &nAccel
         ltime = time(NULL);
         timestamp = asctime(localtime(&ltime));
         timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::getRotationSpeed] ERROR = %s\n", timestamp, sResp.c_str());
+        fprintf(Logfile, "[%s] [CLunaticoBeaver::getShutterSpeed] ERROR = %s\n", timestamp, sResp.c_str());
         fflush(Logfile);
 #endif
         return nErr;
@@ -2080,7 +2314,18 @@ int CLunaticoBeaver::getShutterSpeed(int &nMinSpeed, int &nMaxSpeed, int &nAccel
     // convert Az string to double
     parseFields(sResp, svFields, ':');
     if(svFields.size()>=2) {
-        nMinSpeed = std::stod(svFields[1]);
+        try {
+            nMinSpeed = std::stod(svFields[1]);
+        }
+        catch(const std::exception& e) {
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+            ltime = time(NULL);
+            timestamp = asctime(localtime(&ltime));
+            timestamp[strlen(timestamp) - 1] = 0;
+            fprintf(Logfile, "[%s] [CLunaticoBeaver::getShutterSpeed] conversion exception = %s\n", timestamp, e.what());
+#endif
+            return ERR_CMDFAILED;
+        }
     }
 
     nErr = domeCommand("!dome getshuttermaxspeed#", sResp);
@@ -2089,7 +2334,7 @@ int CLunaticoBeaver::getShutterSpeed(int &nMinSpeed, int &nMaxSpeed, int &nAccel
         ltime = time(NULL);
         timestamp = asctime(localtime(&ltime));
         timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::getRotationSpeed] ERROR = %s\n", timestamp, sResp.c_str());
+        fprintf(Logfile, "[%s] [CLunaticoBeaver::getShutterSpeed] ERROR = %s\n", timestamp, sResp.c_str());
         fflush(Logfile);
 #endif
         return nErr;
@@ -2097,7 +2342,18 @@ int CLunaticoBeaver::getShutterSpeed(int &nMinSpeed, int &nMaxSpeed, int &nAccel
     // convert Az string to double
     parseFields(sResp, svFields, ':');
     if(svFields.size()>=2) {
-        nMaxSpeed = std::stod(svFields[1]);
+        try {
+            nMaxSpeed = std::stod(svFields[1]);
+        }
+        catch(const std::exception& e) {
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+            ltime = time(NULL);
+            timestamp = asctime(localtime(&ltime));
+            timestamp[strlen(timestamp) - 1] = 0;
+            fprintf(Logfile, "[%s] [CLunaticoBeaver::getShutterSpeed] conversion exception = %s\n", timestamp, e.what());
+#endif
+            return ERR_CMDFAILED;
+        }
     }
 
     nErr = domeCommand("!dome getshutteracceleration#", sResp);
@@ -2114,7 +2370,18 @@ int CLunaticoBeaver::getShutterSpeed(int &nMinSpeed, int &nMaxSpeed, int &nAccel
     // convert Az string to double
     parseFields(sResp, svFields, ':');
     if(svFields.size()>=2) {
-        nAccel = std::stod(svFields[1]);
+        try {
+            nAccel = std::stod(svFields[1]);
+        }
+        catch(const std::exception& e) {
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+            ltime = time(NULL);
+            timestamp = asctime(localtime(&ltime));
+            timestamp[strlen(timestamp) - 1] = 0;
+            fprintf(Logfile, "[%s] [CLunaticoBeaver::getShutterSpeed] conversion exception = %s\n", timestamp, e.what());
+#endif
+            return ERR_CMDFAILED;
+        }
     }
 
 
