@@ -144,7 +144,6 @@ int X2Dome::execModalSettingsDialog()
         return ERR_POINTER;
 
     X2MutexLocker ml(GetMutex());
-    m_LunaticoBeaver.getShutterPresent(m_bHasShutterControl);
 
     memset(szTmpBuf,0,SERIAL_BUFFER_SIZE);
 
@@ -159,6 +158,7 @@ int X2Dome::execModalSettingsDialog()
     }
 
     if(m_bLinked) {
+        m_LunaticoBeaver.getShutterPresent(m_bHasShutterControl);
         dx->setEnabled("homePosition",true);
         dx->setEnabled("parkPosition",true);
 
@@ -236,6 +236,7 @@ int X2Dome::execModalSettingsDialog()
     else {
         dx->setEnabled("homePosition", false);
         dx->setEnabled("parkPosition", false);
+        dx->setEnabled("checkBox_2",false);
         dx->setEnabled("ticksPerRev", false);
         dx->setEnabled("rotationMinSpeed", false);
         dx->setEnabled("rotationSpeed", false);
@@ -315,7 +316,6 @@ void X2Dome::uiEvent(X2GUIExchangeInterface* uiex, const char* pszEvent)
     int nSMinSpeed;
     int nSMaxSpeed;
     int nSAcc;
-    double  batShutCutOff;
 
     if (!strcmp(pszEvent, "on_pushButtonCancel_clicked") && (m_bCalibratingDome || m_bCalibratingShutter))
         m_LunaticoBeaver.abortCurrentCommand();

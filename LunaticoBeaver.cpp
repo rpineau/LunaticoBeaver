@@ -1692,6 +1692,8 @@ int CLunaticoBeaver::getShutterPresent(bool &bShutterPresent)
     std::string sResp;
     std::vector<std::string> svFields;
 
+    bShutterPresent = false;
+
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
@@ -1702,7 +1704,6 @@ int CLunaticoBeaver::getShutterPresent(bool &bShutterPresent)
     if(nErr) {
         return nErr;
     }
-    m_bShutterPresent = false;
 
     // convert Az string to double
     parseFields(sResp, svFields, ':');
