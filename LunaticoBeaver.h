@@ -39,7 +39,7 @@
 #define RAIN_CHECK_INTERVAL 10
 
 // #define PLUGIN_DEBUG 2
-#define DRIVER_VERSION      1.00
+#define DRIVER_VERSION      1.05
 
 /*
  • bit 0: ok moving rot

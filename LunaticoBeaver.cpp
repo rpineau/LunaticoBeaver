@@ -977,7 +977,7 @@ int CLunaticoBeaver::openShutter()
 #endif
 
 	
-    nErr = domeCommand("shutter open#", sResp);
+    nErr = domeCommand("!dome openshutter#", sResp);
     if(nErr) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
         ltime = time(NULL);
@@ -987,16 +987,6 @@ int CLunaticoBeaver::openShutter()
         fflush(Logfile);
 #endif
     }
-//    if(szResp[0] == 'L') { // batteryb LOW.. can't open
-//#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-//        ltime = time(NULL);
-//        timestamp = asctime(localtime(&ltime));
-//        timestamp[strlen(timestamp) - 1] = 0;
-//        fprintf(Logfile, "[%s] [CLunaticoBeaver::openShutter] Voltage too low to open\n", timestamp);
-//        fflush(Logfile);
-//#endif
-//        nErr = ERR_CMDFAILED;
-//    }
     return nErr;
 }
 
@@ -1036,7 +1026,7 @@ int CLunaticoBeaver::closeShutter()
 #endif
 
 	
-    nErr = domeCommand("dome closeshutter#", sResp);
+    nErr = domeCommand("!dome closeshutter#", sResp);
     if(nErr) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
         ltime = time(NULL);
