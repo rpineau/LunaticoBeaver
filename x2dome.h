@@ -145,6 +145,7 @@ private:
 
     void portNameOnToCharPtr(char* pszPort, const int& nMaxSize) const;
 
+    int         m_nCalibratingError;
 
 	int         m_nPrivateISIndex;
 	bool        m_bLinked;

@@ -272,7 +272,7 @@ int CLunaticoBeaver::readResponse(std::string &sResp, int nTimeout)
 
     do {
         nErr = m_pSerx->bytesWaitingRx(nBytesWaiting);
-#if defined MFDeluxe_DEBUG && MFDeluxe_DEBUG >= 3
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 3
         ltime = time(NULL);
         timestamp = asctime(localtime(&ltime));
         timestamp[strlen(timestamp) - 1] = 0;
@@ -283,7 +283,7 @@ int CLunaticoBeaver::readResponse(std::string &sResp, int nTimeout)
         if(!nBytesWaiting) {
             nbTimeouts += MAX_READ_WAIT_TIMEOUT;
             if(nbTimeouts >= nTimeout) {
-#if defined MFDeluxe_DEBUG && MFDeluxe_DEBUG >= 3
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 3
                 ltime = time(NULL);
                 timestamp = asctime(localtime(&ltime));
                 timestamp[strlen(timestamp) - 1] = 0;
@@ -304,24 +304,24 @@ int CLunaticoBeaver::readResponse(std::string &sResp, int nTimeout)
             break; // buffer is full.. there is a problem !!
         }
         if(nErr) {
-#if defined MFDeluxe_DEBUG && MFDeluxe_DEBUG >= 2
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
             ltime = time(NULL);
             timestamp = asctime(localtime(&ltime));
             timestamp[strlen(timestamp) - 1] = 0;
-            fprintf(Logfile, "[%s] [CMFDeluxeController::readResponse] readFile error.\n", timestamp);
+            fprintf(Logfile, "[%s] [CLunaticoBeaver::readResponse] readFile error.\n", timestamp);
             fflush(Logfile);
 #endif
             return nErr;
         }
 
         if (ulBytesRead != nBytesWaiting) { // timeout
-#if defined MFDeluxe_DEBUG && MFDeluxe_DEBUG >= 2
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
             ltime = time(NULL);
             timestamp = asctime(localtime(&ltime));
             timestamp[strlen(timestamp) - 1] = 0;
-            fprintf(Logfile, "[%s] [CMFDeluxeController::readResponse] readFile Timeout Error\n", timestamp);
-            fprintf(Logfile, "[%s] [CMFDeluxeController::readResponse] readFile nBytesWaiting = %d\n", timestamp, nBytesWaiting);
-            fprintf(Logfile, "[%s] [CMFDeluxeController::readResponse] readFile ulBytesRead = %lu\n", timestamp, ulBytesRead);
+            fprintf(Logfile, "[%s] [CLunaticoBeaver::readResponse] readFile Timeout Error\n", timestamp);
+            fprintf(Logfile, "[%s] [CLunaticoBeaver::readResponse] readFile nBytesWaiting = %d\n", timestamp, nBytesWaiting);
+            fprintf(Logfile, "[%s] [CLunaticoBeaver::readResponse] readFile ulBytesRead = %lu\n", timestamp, ulBytesRead);
             fflush(Logfile);
 #endif
         }
@@ -851,7 +851,7 @@ int CLunaticoBeaver::syncDome(double dAz, double dEl)
 
     m_dCurrentAzPosition = dAz;
     snprintf(szBuf, SERIAL_BUFFER_SIZE, "!dome setaz %3.2f#", dAz);
-    nErr = domeCommand(szBuf, sResp);
+    nErr = domeCommand(std::string(szBuf), sResp);
     if(nErr) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
         ltime = time(NULL);
@@ -1975,7 +1975,7 @@ int CLunaticoBeaver::setDomeStepPerRev(int nSteps)
     dStepPerDeg = float(nSteps)/360.0;
 
     snprintf(szBuf, SERIAL_BUFFER_SIZE, " !domerot setstepsperdegree %3.6f#", dStepPerDeg);
-    nErr = domeCommand(szBuf, sResp);
+    nErr = domeCommand(std::string(szBuf), sResp);
     if(nErr)
         return nErr;
     m_nNbStepPerRev = nSteps;
@@ -2065,7 +2065,7 @@ int CLunaticoBeaver::setHomeAz(double dAz)
 
 
     snprintf(szBuf, SERIAL_BUFFER_SIZE, "!domerot sethome %3.2f#", dAz);
-    nErr = domeCommand(szBuf, sResp);
+    nErr = domeCommand(std::string(szBuf), sResp);
     return nErr;
 }
 
@@ -2091,7 +2091,7 @@ int CLunaticoBeaver::setParkAz(double dAz)
         return NOT_CONNECTED;
 
     snprintf(szBuf, SERIAL_BUFFER_SIZE, "!domerot setpark %3.2f#", dAz);
-    nErr = domeCommand(szBuf, sResp);
+    nErr = domeCommand(std::string(szBuf), sResp);
     return nErr;
 }
 
@@ -2266,12 +2266,13 @@ int CLunaticoBeaver::setRotationSpeed(int nMinSpeed, int nMaxSpeed, int nAccel)
     nErr = domeCommand(ssTmp.str(), sResp);
     if(nErr)
         return nErr;
-
+    std::stringstream().swap(ssTmp);
     ssTmp<<"!domerot setmaxspeed " << nMaxSpeed << "#";
     nErr = domeCommand(ssTmp.str(), sResp);
     if(nErr)
         return nErr;
 
+    std::stringstream().swap(ssTmp);
     ssTmp<<"!domerot setacceleration " << nAccel << "#";
     nErr = domeCommand(ssTmp.str(), sResp);
     if(nErr)
@@ -2403,11 +2404,13 @@ int CLunaticoBeaver::setShutterSpeed(int nMinSpeed, int nMaxSpeed, int nAccel)
     if(nErr)
         return nErr;
 
+    std::stringstream().swap(ssTmp);
     ssTmp<<"!dome setshuttermaxspeed " << nMaxSpeed << "#";
     nErr = domeCommand(ssTmp.str(), sResp);
     if(nErr)
         return nErr;
 
+    std::stringstream().swap(ssTmp);
     ssTmp<<"!dome setshutteracceleration " << nAccel << "#";
     nErr = domeCommand(ssTmp.str(), sResp);
     if(nErr)
