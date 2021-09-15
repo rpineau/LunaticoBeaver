@@ -119,7 +119,7 @@ int X2Dome::execModalSettingsDialog()
     X2GUIInterface*					ui = uiutil.X2UI();
     X2GUIExchangeInterface*			dx = NULL;//Comes after ui is loaded
     bool bPressedOK = false;
-    char szTmpBuf[SERIAL_BUFFER_SIZE];
+    std::stringstream ssTmpBuf;
     std::string fName;
     double dHomeAz;
     double dParkAz;
@@ -146,7 +146,6 @@ int X2Dome::execModalSettingsDialog()
 
     X2MutexLocker ml(GetMutex());
 
-    memset(szTmpBuf,0,SERIAL_BUFFER_SIZE);
 
     if(m_bLogRainStatus) {
         dx->setChecked("checkBox",true);
@@ -205,11 +204,12 @@ int X2Dome::execModalSettingsDialog()
             dx->setPropertyDouble("lowShutBatCutOff", "value", dShutterCutOff);
 
             if(dShutterBattery>=0.0f)
-                snprintf(szTmpBuf,SERIAL_BUFFER_SIZE, "%2.2f V",dShutterBattery);
+                ssTmpBuf << std::fixed << std::setprecision(2) << std::fixed << std::setprecision(2) << dShutterBattery << " V";
             else
-                snprintf(szTmpBuf,SERIAL_BUFFER_SIZE, "--");
-            dx->setPropertyString("shutterBatteryLevel","text", szTmpBuf);
+                ssTmpBuf << "--";
 
+            dx->setPropertyString("shutterBatteryLevel","text", ssTmpBuf.str().c_str());
+            std::stringstream().swap(ssTmpBuf);
         } else {
             dx->setEnabled("shutterMinSpeed",false);
             dx->setPropertyInt("shutterMinSpeed","value",0);
@@ -223,15 +223,14 @@ int X2Dome::execModalSettingsDialog()
             dx->setPropertyString("shutterBatteryLevel","text", "--");
         }
 
-
         nErr = m_LunaticoBeaver.getRainSensorStatus(nRainSensorStatus);
         if(nErr)
             dx->setPropertyString("rainStatus","text", "--");
         else {
-            snprintf(szTmpBuf, SERIAL_BUFFER_SIZE, nRainSensorStatus==NOT_RAINING ? "<html><head/><body><p><span style=\" color:#00FF00;\">Not raining</span></p></body></html>" : "<html><head/><body><p><span style=\" color:#FF0000;\">Raining</span></p></body></html>");
-            dx->setPropertyString("rainStatus","text", szTmpBuf);
+            ssTmpBuf << (nRainSensorStatus==NOT_RAINING ? "<html><head/><body><p><span style=\" color:#00FF00;\">Not raining</span></p></body></html>" : "<html><head/><body><p><span style=\" color:#FF0000;\">Raining</span></p></body></html>");
+            dx->setPropertyString("rainStatus","text", ssTmpBuf.str().c_str());
+            std::stringstream().swap(ssTmpBuf);
         }
-
         dx->setEnabled("pushButton",true);
     }
     else {
@@ -306,7 +305,7 @@ void X2Dome::uiEvent(X2GUIExchangeInterface* uiex, const char* pszEvent)
     bool bComplete = false;
     int nErr;
     double dShutterBattery, dShutterCutOff;
-    char szTmpBuf[SERIAL_BUFFER_SIZE];
+    std::stringstream ssTmpBuf;
     char szErrorMessage[LOG_BUFFER_SIZE];
     std::string fName;
     int nMinSpeed;
@@ -420,19 +419,21 @@ void X2Dome::uiEvent(X2GUIExchangeInterface* uiex, const char* pszEvent)
                     if(dShutterCutOff < 1.0f) // not right.. ask again
                         m_LunaticoBeaver.getBatteryLevels(dShutterBattery, dShutterCutOff);
                         if(dShutterBattery>=0.0f)
-                            snprintf(szTmpBuf,SERIAL_BUFFER_SIZE, "%2.2f V",dShutterBattery);
+                            ssTmpBuf << std::fixed << std::setprecision(2) << std::fixed << std::setprecision(2) << dShutterBattery << " V";
                         else
-                            snprintf(szTmpBuf,SERIAL_BUFFER_SIZE, "--");
-                        uiex->setPropertyString("shutterBatteryLevel","text", szTmpBuf);
+                            ssTmpBuf << "--";
+                        uiex->setPropertyString("shutterBatteryLevel","text", ssTmpBuf.str().c_str());
                         uiex->setPropertyDouble("lowShutBatCutOff","value", dShutterCutOff);
+                        std::stringstream().swap(ssTmpBuf);
                 }
                 m_nBattRequest++;
                 nErr = m_LunaticoBeaver.getRainSensorStatus(nRainSensorStatus);
                 if(nErr)
                     uiex->setPropertyString("rainStatus","text", "--");
                 else {
-                    snprintf(szTmpBuf, SERIAL_BUFFER_SIZE, nRainSensorStatus==NOT_RAINING ? "<html><head/><body><p><span style=\" color:#00FF00;\">Not raining</span></p></body></html>" : "<html><head/><body><p><span style=\" color:#FF0000;\">Raining</span></p></body></html>");
-                    uiex->setPropertyString("rainStatus","text", szTmpBuf);
+                    ssTmpBuf << (nRainSensorStatus==NOT_RAINING ? "<html><head/><body><p><span style=\" color:#00FF00;\">Not raining</span></p></body></html>" : "<html><head/><body><p><span style=\" color:#FF0000;\">Raining</span></p></body></html>");
+                    uiex->setPropertyString("rainStatus","text", ssTmpBuf.str().c_str());
+                    std::stringstream().swap(ssTmpBuf);
                 }
 
             }
@@ -533,10 +534,11 @@ void X2Dome::uiEvent(X2GUIExchangeInterface* uiex, const char* pszEvent)
             uiex->setPropertyDouble("lowShutBatCutOff", "value", dShutterCutOff);
 
             if(dShutterBattery>=0.0f)
-                snprintf(szTmpBuf,SERIAL_BUFFER_SIZE, "%2.2f V",dShutterBattery);
+                ssTmpBuf << std::fixed << std::setprecision(2) << std::fixed << std::setprecision(2) << dShutterBattery << " V";
             else
-                snprintf(szTmpBuf,SERIAL_BUFFER_SIZE, "--");
-            uiex->setPropertyString("shutterBatteryLevel","text", szTmpBuf);
+                ssTmpBuf << "--";
+            uiex->setPropertyString("shutterBatteryLevel","text", ssTmpBuf.str().c_str());
+            std::stringstream().swap(ssTmpBuf);
         }
     }
 
@@ -566,10 +568,10 @@ void X2Dome::deviceInfoDetailedDescription(BasicStringInterface& str) const
 {
 
     if(m_bLinked) {
-        char cFirmware[SERIAL_BUFFER_SIZE];
+        std::string sFirmware;
 		X2MutexLocker ml(GetMutex());
-        m_LunaticoBeaver.getFirmwareVersion(cFirmware, SERIAL_BUFFER_SIZE);
-        str = cFirmware;
+        m_LunaticoBeaver.getFirmwareVersion(sFirmware);
+        str = sFirmware.c_str();
 
     }
     else
@@ -593,7 +595,7 @@ void X2Dome::deviceInfoModel(BasicStringInterface& str)
 
 double	X2Dome::driverInfoVersion(void) const
 {
-	return DRIVER_VERSION;
+	return PLUGIN_VERSION;
 }
 
 //
