@@ -23,6 +23,11 @@
 #include <vector>
 #include <sstream>
 #include <iostream>
+#include <iomanip>
+#include <fstream>
+#include <chrono>
+#include <thread>
+#include <ctime>
 
 // SB includes
 #include "../../licensedinterfaces/sberrorx.h"
@@ -39,7 +44,7 @@
 #define RAIN_CHECK_INTERVAL 10
 
 // #define PLUGIN_DEBUG 2
-#define DRIVER_VERSION      1.1
+#define PLUGIN_VERSION      1.1
 
 /*
  • bit 0: ok moving rot
@@ -88,7 +93,7 @@ enum HomeStatuses {NOT_HOME = 0, AT_HOME};
 enum RainActions {DO_NOTHING=0, HOME, PARK};
 
 // RG-11
-enum RainSensorStates {RAINING= 0, NOT_RAINING};
+enum RainSensorStates {RAINING= 0, NOT_RAINING, RAIN_UNNOWN};
 
 class CLunaticoBeaver
 {
@@ -110,9 +115,9 @@ public:
     int gotoAzimuth(double dNewAz);
     int openShutter();
     int closeShutter();
-    int getFirmwareVersion(char *szVersion, int nStrMaxLen);
+    int getFirmwareVersion(std::string &sVersion);
     int getFirmwareVersion(float &fVersion);
-    int getShutterFirmwareVersion(char *szVersion, int nStrMaxLen);
+    int getShutterFirmwareVersion(std::string &sVersion);
     int goHome();
     int calibrateDome();
     int calibrateShutter();
@@ -208,15 +213,14 @@ protected:
 
     double          m_dGotoAz;
 
-    char            m_szFirmwareVersion[SERIAL_BUFFER_SIZE];
+    std::string     m_sFirmwareVersion;
     int             m_nShutterState;
     bool            m_bShutterOnly; // roll off roof so the arduino is running the shutter firmware only.
-    char            m_szLogBuffer[ND_LOG_BUFFER_SIZE];
     int             m_nHomingTries;
     int             m_nGotoTries;
     bool            m_bParking;
     bool            m_bUnParking;
-    int             m_nIsRaining;
+    int             m_nRainSensorstate;
     bool            m_bHomeOnPark;
     bool            m_bHomeOnUnpark;
     bool            m_bShutterPresent;
@@ -225,16 +229,17 @@ protected:
     int             m_nShutStatus;
 
     std::string     m_sRainStatusfilePath;
-    FILE            *RainStatusfile;
+    std::ofstream   m_RainStatusfile;
+    int             m_nRainStatus;
+
     bool            m_bSaveRainStatus;
     CStopWatch      m_cRainCheckTimer;
     
 #ifdef PLUGIN_DEBUG
-    std::string m_sLogfilePath;
     // timestamp for logs
-    char *timestamp;
-    time_t ltime;
-    FILE *Logfile;	  // LogFile
+    const std::string getTimeStamp();
+    std::ofstream m_sLogFile;
+    std::string m_sLogfilePath;
 #endif
 
 };

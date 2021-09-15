@@ -33,22 +33,15 @@ CLunaticoBeaver::CLunaticoBeaver()
     m_nHomingTries = 0;
     m_nGotoTries = 0;
 
-    m_nIsRaining = NOT_RAINING;
+    m_nRainSensorstate = NOT_RAINING;
+    m_nRainStatus = RAIN_UNNOWN;
     m_bSaveRainStatus = false;
-    RainStatusfile = NULL;
     m_cRainCheckTimer.Reset();
 
     m_bHomeOnPark = false;
     m_bHomeOnUnpark = false;
 
     m_bShutterPresent = false;
-
-#ifdef    PLUGIN_DEBUG
-    Logfile = NULL;
-#endif
-    
-    memset(m_szFirmwareVersion,0,SERIAL_BUFFER_SIZE);
-    memset(m_szLogBuffer,0,ND_LOG_BUFFER_SIZE);
 
 #ifdef PLUGIN_DEBUG
 #if defined(SB_WIN_BUILD)
@@ -62,7 +55,7 @@ CLunaticoBeaver::CLunaticoBeaver()
     m_sLogfilePath = getenv("HOME");
     m_sLogfilePath += "/LunaticoBeaver-Log.txt";
 #endif
-    Logfile = fopen(m_sLogfilePath.c_str(), "w");
+    m_sLogFile.open(m_sLogfilePath, std::ios::out |std::ios::trunc);
 #endif
 
 #if defined(SB_WIN_BUILD)
@@ -78,13 +71,10 @@ CLunaticoBeaver::CLunaticoBeaver()
 #endif
     
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CLunaticoBeaver] Version %3.2f build 2019_12_06_1810.\n", timestamp, DRIVER_VERSION);
-    fprintf(Logfile, "[%s] [CLunaticoBeaver] Constructor Called.\n", timestamp);
-    fprintf(Logfile, "[%s] [CLunaticoBeaver] Rains status file : '%s'.\n", timestamp, m_sRainStatusfilePath.c_str());
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [CLunaticoBeaver] Version " << std::fixed << std::setprecision(2) << PLUGIN_VERSION << " build " << __DATE__ << " " << __TIME__ << std::endl;
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [CLunaticoBeaver] Constructor Called." << std::endl;
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [CLunaticoBeaver] Rains status file : " << m_sRainStatusfilePath<<std::endl;
+    m_sLogFile.flush();
 #endif
 
 }
@@ -93,13 +83,9 @@ CLunaticoBeaver::~CLunaticoBeaver()
 {
 #ifdef	PLUGIN_DEBUG
     // Close LogFile
-    if (Logfile)
-        fclose(Logfile);
+    if(m_sLogFile.is_open())
+        m_sLogFile.close();
 #endif
-    if(RainStatusfile) {
-        fclose(RainStatusfile);
-        RainStatusfile = NULL;
-    }
 }
 
 int CLunaticoBeaver::Connect(const char *pszPort)
@@ -107,11 +93,8 @@ int CLunaticoBeaver::Connect(const char *pszPort)
     int nErr;
 
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::Connect] Called %s\n", timestamp, pszPort);
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [Connect] Connect Called." << std::endl;
+    m_sLogFile.flush();
 #endif
     m_bIsConnected = false;
     m_bCalibrating = false;
@@ -125,30 +108,21 @@ int CLunaticoBeaver::Connect(const char *pszPort)
     m_bIsConnected = true;
 
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::Connect] connected to %s\n", timestamp, pszPort);
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [Connect] connected to " << pszPort << std::endl;
+    m_sLogFile.flush();
 #endif
 
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::Connect] Getting Firmware\n", timestamp);
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [Connect] Getting Firmware." << std::endl;
+    m_sLogFile.flush();
 #endif
 
     // if this fails we're not properly connected.
-    nErr = getFirmwareVersion(m_szFirmwareVersion, SERIAL_BUFFER_SIZE);
+    nErr = getFirmwareVersion(m_sFirmwareVersion);
     if(nErr) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::Connect] Error Getting Firmware.\n", timestamp);
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [Connect] Error getting Firmware : " << nErr << std::endl;
+        m_sLogFile.flush();
 #endif
         m_bIsConnected = false;
         m_pSerx->close();
@@ -157,28 +131,24 @@ int CLunaticoBeaver::Connect(const char *pszPort)
     nErr = getDomeParkAz(m_dCurrentAzPosition);
     if(nErr) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::Connect] getDomeParkAz nErr : %d\n", timestamp, nErr);
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [Connect] Error getDomeParkAz : " << nErr << std::endl;
+        m_sLogFile.flush();
 #endif
         return nErr;
     }
     nErr = getDomeHomeAz(m_dHomeAz);
     if(nErr) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::Connect] getDomeHomeAz nErr : %d\n", timestamp, nErr);
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [Connect] Error getDomeHomeAz : " << nErr << std::endl;
+        m_sLogFile.flush();
 #endif
         return nErr;
     }
 
     getShutterPresent(m_bShutterPresent);
 
+    writeRainStatus();
+    m_cRainCheckTimer.Reset();
     
     return SB_OK;
 }
@@ -196,11 +166,8 @@ void CLunaticoBeaver::Disconnect()
     m_bUnParking = false;
 
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::Disconnect] m_bIsConnected = %d\n", timestamp, m_bIsConnected);
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [Disconnect] Error m_bIsConnected : " << (m_bIsConnected?"Yes":"No") << std::endl;
+    m_sLogFile.flush();
 #endif
 }
 
@@ -213,11 +180,8 @@ int CLunaticoBeaver::domeCommand(const std::string sCmd, std::string &sResp, int
     m_pSerx->purgeTxRx();
 
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::domeCommand] sending : %s\n", timestamp, sCmd.c_str());
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [domeCommand] sending : " << sCmd << std::endl;
+    m_sLogFile.flush();
 #endif
 
     nErr = m_pSerx->writeFile((void *)sCmd.c_str(), sCmd.size(), ulBytesWrite);
@@ -229,20 +193,14 @@ int CLunaticoBeaver::domeCommand(const std::string sCmd, std::string &sResp, int
     nErr = readResponse(sResp, nTimeout);
     if(nErr) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::domeCommand] ***** ERROR READING RESPONSE **** error = %d , response : %s\n", timestamp, nErr, sResp.c_str());
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [domeCommand] ***** ERROR READING RESPONSE **** error = " << nErr << " , response : " << sResp << std::endl;
+        m_sLogFile.flush();
 #endif
         return nErr;
     }
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::domeCommand] response : %s\n", timestamp, sResp.c_str());
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [domeCommand] response : " << sResp << std::endl;
+    m_sLogFile.flush();
 #endif
 
     return nErr;
@@ -273,22 +231,16 @@ int CLunaticoBeaver::readResponse(std::string &sResp, int nTimeout)
     do {
         nErr = m_pSerx->bytesWaitingRx(nBytesWaiting);
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 3
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::readResponse] nBytesWaiting = %d\n", timestamp, nBytesWaiting);
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::readResponse] nBytesWaiting nErr = %d\n", timestamp, nErr);
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [readResponse] nBytesWaiting      : " << nBytesWaiting << std::endl;
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [readResponse] nBytesWaiting nErr : " << nErr << std::endl;
+        m_sLogFile.flush();
 #endif
         if(!nBytesWaiting) {
             nbTimeouts += MAX_READ_WAIT_TIMEOUT;
             if(nbTimeouts >= nTimeout) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 3
-                ltime = time(NULL);
-                timestamp = asctime(localtime(&ltime));
-                timestamp[strlen(timestamp) - 1] = 0;
-                fprintf(Logfile, "[%s] [CLunaticoBeaver::readResponse] bytesWaitingRx timeout, no data for %d ms\n", timestamp, nbTimeouts);
-                fflush(Logfile);
+                m_sLogFile << "["<<getTimeStamp()<<"]"<< " [readResponse] bytesWaitingRx timeout, no data for " << nbTimeouts << " ms"<< std::endl;
+                m_sLogFile.flush();
 #endif
                 nErr = COMMAND_TIMEOUT;
                 break;
@@ -305,24 +257,18 @@ int CLunaticoBeaver::readResponse(std::string &sResp, int nTimeout)
         }
         if(nErr) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-            ltime = time(NULL);
-            timestamp = asctime(localtime(&ltime));
-            timestamp[strlen(timestamp) - 1] = 0;
-            fprintf(Logfile, "[%s] [CLunaticoBeaver::readResponse] readFile error.\n", timestamp);
-            fflush(Logfile);
+            m_sLogFile << "["<<getTimeStamp()<<"]"<< " [readResponse] readFile error : " << nErr << std::endl;
+            m_sLogFile.flush();
 #endif
             return nErr;
         }
 
         if (ulBytesRead != nBytesWaiting) { // timeout
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-            ltime = time(NULL);
-            timestamp = asctime(localtime(&ltime));
-            timestamp[strlen(timestamp) - 1] = 0;
-            fprintf(Logfile, "[%s] [CLunaticoBeaver::readResponse] readFile Timeout Error\n", timestamp);
-            fprintf(Logfile, "[%s] [CLunaticoBeaver::readResponse] readFile nBytesWaiting = %d\n", timestamp, nBytesWaiting);
-            fprintf(Logfile, "[%s] [CLunaticoBeaver::readResponse] readFile ulBytesRead = %lu\n", timestamp, ulBytesRead);
-            fflush(Logfile);
+            m_sLogFile << "["<<getTimeStamp()<<"]"<< " [readResponse] rreadFile Timeout Error." << std::endl;
+            m_sLogFile << "["<<getTimeStamp()<<"]"<< " [readResponse] readFile nBytesWaiting : " << nBytesWaiting << std::endl;
+            m_sLogFile << "["<<getTimeStamp()<<"]"<< " [readResponse] readFile ulBytesRead   : " << ulBytesRead << std::endl;
+            m_sLogFile.flush();
 #endif
         }
 
@@ -338,11 +284,8 @@ int CLunaticoBeaver::readResponse(std::string &sResp, int nTimeout)
     sResp.assign(pszBuf);
 
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 3
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::readResponse] sResp  = '%s'\n", timestamp, sResp.c_str());
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [readResponse] sResp : " << sResp << std::endl;
+    m_sLogFile.flush();
 #endif
 
     return nErr;
@@ -363,11 +306,8 @@ int CLunaticoBeaver::getDomeAz(double &dDomeAz)
     nErr = domeCommand("!dome getaz#", sResp);
     if(nErr) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::getDomeAz] ERROR = %s\n", timestamp, sResp.c_str());
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getDomeAz] ERROR : " << nErr << " , sResp : " << sResp << std::endl;
+        m_sLogFile.flush();
 #endif
         return nErr;
     }
@@ -379,10 +319,8 @@ int CLunaticoBeaver::getDomeAz(double &dDomeAz)
         }
         catch(const std::exception& e) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-            ltime = time(NULL);
-            timestamp = asctime(localtime(&ltime));
-            timestamp[strlen(timestamp) - 1] = 0;
-            fprintf(Logfile, "[%s] [CLunaticoBeaver::getDomeAz] conversion exception = %s\n", timestamp, e.what());
+            m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getDomeAz] conversion exception : " << e.what() << std::endl;
+            m_sLogFile.flush();
 #endif
             return ERR_CMDFAILED;
         }
@@ -394,11 +332,8 @@ int CLunaticoBeaver::getDomeAz(double &dDomeAz)
     }
 
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::getDomeAz] Dome Az = %3.2f\n", timestamp, dDomeAz);
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getDomeAz] Dome Az  : " << std::fixed << std::setprecision(2) << std::fixed << std::setprecision(2) << m_dParkAz << std::endl;
+    m_sLogFile.flush();
 #endif
 
     return nErr;
@@ -445,11 +380,8 @@ int CLunaticoBeaver::getDomeHomeAz(double &dAz)
     nErr = domeCommand("!domerot gethome#", sResp);
     if(nErr) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::getDomeHomeAz] ERROR = %s\n", timestamp, sResp.c_str());
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getDomeHomeAz] ERROR : " << nErr << " , sResp : " << sResp << std::endl;
+        m_sLogFile.flush();
 #endif
         return nErr;
     }
@@ -462,10 +394,8 @@ int CLunaticoBeaver::getDomeHomeAz(double &dAz)
         }
         catch(const std::exception& e) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-            ltime = time(NULL);
-            timestamp = asctime(localtime(&ltime));
-            timestamp[strlen(timestamp) - 1] = 0;
-            fprintf(Logfile, "[%s] [CLunaticoBeaver::getDomeHomeAz] conversion exception = %s\n", timestamp, e.what());
+            m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getDomeHomeAz] conversion exception : " << e.what() << std::endl;
+            m_sLogFile.flush();
 #endif
             return ERR_CMDFAILED;
         }
@@ -473,11 +403,8 @@ int CLunaticoBeaver::getDomeHomeAz(double &dAz)
 
     m_dHomeAz = dAz;
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::getDomeHomeAz] m_dHomeAz = %3.2f\n", timestamp, m_dHomeAz);
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getDomeHomeAz] Dome Az  : " << std::fixed << std::setprecision(2) << std::fixed << std::setprecision(2) << m_dHomeAz << std::endl;
+    m_sLogFile.flush();
 #endif
 
     return nErr;
@@ -500,11 +427,8 @@ int CLunaticoBeaver::getDomeParkAz(double &dAz)
     nErr = domeCommand("!domerot getpark#", sResp);
     if(nErr) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::getDomeParkAz] ERROR = %s\n", timestamp, sResp.c_str());
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getDomeParkAz] ERROR : " << nErr << " , sResp : " << sResp << std::endl;
+        m_sLogFile.flush();
 #endif
         return nErr;
     }
@@ -517,21 +441,16 @@ int CLunaticoBeaver::getDomeParkAz(double &dAz)
         }
         catch(const std::exception& e) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-            ltime = time(NULL);
-            timestamp = asctime(localtime(&ltime));
-            timestamp[strlen(timestamp) - 1] = 0;
-            fprintf(Logfile, "[%s] [CLunaticoBeaver::getDomeParkAz] conversion exception = %s\n", timestamp, e.what());
+            m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getDomeParkAz] conversion exception : " << e.what() << std::endl;
+            m_sLogFile.flush();
 #endif
             return ERR_CMDFAILED;
         }
     }
     m_dParkAz = dAz;
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::getDomeParkAz] m_dParkAz = %3.2f\n", timestamp, m_dParkAz);
-        fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getDomeParkAz] Dome Az  : " << std::fixed << std::setprecision(2) << std::fixed << std::setprecision(2) << m_dHomeAz << std::endl;
+    m_sLogFile.flush();
 #endif
 
     return nErr;
@@ -561,21 +480,15 @@ int CLunaticoBeaver::getShutterState(int &nState)
     nErr = domeCommand("!dome shutterstatus#", sResp);
     if(nErr) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::getShutterState] ERROR = %s\n", timestamp, sResp.c_str());
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getShutterState] ERROR : " << nErr << " , sResp : " << sResp << std::endl;
+        m_sLogFile.flush();
 #endif
         return nErr;
     }
 
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::getShutterState] response = '%s'\n", timestamp, sResp.c_str());
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getShutterState] sResp : " << sResp << std::endl;
+    m_sLogFile.flush();
 #endif
 
     parseFields(sResp, shutterStateFileds, ':');
@@ -585,10 +498,8 @@ int CLunaticoBeaver::getShutterState(int &nState)
         }
         catch(const std::exception& e) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-            ltime = time(NULL);
-            timestamp = asctime(localtime(&ltime));
-            timestamp[strlen(timestamp) - 1] = 0;
-            fprintf(Logfile, "[%s] [CLunaticoBeaver::getShutterState] conversion exception = %s\n", timestamp, e.what());
+            m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getShutterState] conversion exception : " << e.what() << std::endl;
+            m_sLogFile.flush();
 #endif
             return ERR_CMDFAILED;
         }
@@ -596,11 +507,8 @@ int CLunaticoBeaver::getShutterState(int &nState)
 
 
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::getShutterState] nState = '%d'\n", timestamp, nState);
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getShutterState] nState : " << nState << std::endl;
+    m_sLogFile.flush();
 #endif
 
     return nErr;
@@ -625,11 +533,8 @@ int CLunaticoBeaver::getBatteryLevels(double &dShutterVolts, double &dShutterCut
         nErr = shutterCommand("shutter getvoltage", sResp);
         if(nErr) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-            ltime = time(NULL);
-            timestamp = asctime(localtime(&ltime));
-            timestamp[strlen(timestamp) - 1] = 0;
-            fprintf(Logfile, "[%s] [CLunaticoBeaver::getBatteryLevels] ERROR = %s\n", timestamp, sResp.c_str());
-            fflush(Logfile);
+            m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getBatteryLevels] ERROR : " << nErr << " , sResp : " << sResp << std::endl;
+            m_sLogFile.flush();
 #endif
             return nErr;
         }
@@ -641,10 +546,8 @@ int CLunaticoBeaver::getBatteryLevels(double &dShutterVolts, double &dShutterCut
             }
             catch(const std::exception& e) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-                ltime = time(NULL);
-                timestamp = asctime(localtime(&ltime));
-                timestamp[strlen(timestamp) - 1] = 0;
-                fprintf(Logfile, "[%s] [CLunaticoBeaver::getBatteryLevels] conversion exception = %s\n", timestamp, e.what());
+                m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getBatteryLevels] conversion exception : " << e.what() << std::endl;
+                m_sLogFile.flush();
 #endif
                 return ERR_CMDFAILED;
             }
@@ -654,11 +557,8 @@ int CLunaticoBeaver::getBatteryLevels(double &dShutterVolts, double &dShutterCut
         nErr = shutterCommand("shutter getsafevoltage", sResp);
         if(nErr) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-            ltime = time(NULL);
-            timestamp = asctime(localtime(&ltime));
-            timestamp[strlen(timestamp) - 1] = 0;
-            fprintf(Logfile, "[%s] [CLunaticoBeaver::getBatteryLevels] ERROR = %s\n", timestamp, sResp.c_str());
-            fflush(Logfile);
+            m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getBatteryLevels] ERROR : " << nErr << " , sResp : " << sResp << std::endl;
+            m_sLogFile.flush();
 #endif
             return nErr;
         }
@@ -670,23 +570,17 @@ int CLunaticoBeaver::getBatteryLevels(double &dShutterVolts, double &dShutterCut
             }
             catch(const std::exception& e) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-                ltime = time(NULL);
-                timestamp = asctime(localtime(&ltime));
-                timestamp[strlen(timestamp) - 1] = 0;
-                fprintf(Logfile, "[%s] [CLunaticoBeaver::getBatteryLevels] conversion exception = %s\n", timestamp, e.what());
+                m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getBatteryLevels] conversion exception : " << e.what() << std::endl;
+                m_sLogFile.flush();
 #endif
                 return ERR_CMDFAILED;
             }
         }
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::getBatteryLevels] dShutterVolts = %f\n", timestamp, dShutterVolts);
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::getBatteryLevels] dShutterCutOff = %f\n", timestamp, dShutterCutOff);
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getDomeParkAz] dShutterVolts  : " << std::fixed << std::setprecision(2) << std::fixed << std::setprecision(2) << dShutterVolts << std::endl;
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getDomeParkAz] dShutterCutOff : " << std::fixed << std::setprecision(2) << std::fixed << std::setprecision(2) << dShutterCutOff << std::endl;
+        m_sLogFile.flush();
 #endif
-
     }
     return nErr;
 }
@@ -733,11 +627,8 @@ int CLunaticoBeaver::getDomeStatus(int &nStatus)
     nErr = domeCommand("!dome status#", sResp);
     if(nErr) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::getDomeStatus] ERROR = %s\n", timestamp, sResp.c_str());
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getDomeStatus] ERROR : " << nErr << " , sResp : " << sResp << std::endl;
+        m_sLogFile.flush();
 #endif
         return nErr;
     }
@@ -750,10 +641,8 @@ int CLunaticoBeaver::getDomeStatus(int &nStatus)
         }
         catch(const std::exception& e) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-            ltime = time(NULL);
-            timestamp = asctime(localtime(&ltime));
-            timestamp[strlen(timestamp) - 1] = 0;
-            fprintf(Logfile, "[%s] [CLunaticoBeaver::getDomeStatus] conversion exception = %s\n", timestamp, e.what());
+            m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getDomeStatus] conversion exception : " << e.what() << std::endl;
+            m_sLogFile.flush();
 #endif
             return ERR_CMDFAILED;
         }
@@ -761,17 +650,14 @@ int CLunaticoBeaver::getDomeStatus(int &nStatus)
 
     m_nDomeRotStatus = nStatus & DOME_STATUS_MASK;
 //    m_nShutStatus = nStatus & SHUTTER_STATUS_MASK;
-    m_nIsRaining = nStatus & RAIN_SENSOR_MASK;
+    m_nRainSensorstate = ((nStatus & RAIN_SENSOR_MASK) != 0 ? RAINING : NOT_RAINING);
     
 #ifdef PLUGIN_DEBUG
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::getDomeStatus] nStatus : %d\n", timestamp, nStatus);
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::getDomeStatus] m_nDomeRotStatus : %d\n", timestamp, m_nDomeRotStatus);
-//    fprintf(Logfile, "[%s] [CLunaticoBeaver::getDomeStatus] m_nShutStatus : %d\n", timestamp, m_nShutStatus);
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::getDomeStatus] m_nIsRaining : %d\n", timestamp, m_nIsRaining);
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getDomeStatus] nStatus            : " << nStatus << std::endl;
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getDomeStatus] m_nDomeRotStatus   : " << m_nDomeRotStatus << std::endl;
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getDomeStatus] m_nRainSensorstate : " << m_nRainSensorstate << std::endl;
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getDomeStatus] m_nRainSensorstate : " << (m_nRainSensorstate==RAINING?"Raining":"Not Raining") << std::endl;
+    m_sLogFile.flush();
 #endif
     
     return nErr;
@@ -792,14 +678,11 @@ bool CLunaticoBeaver::isDomeAtHome()
         return nErr;
 
     nErr = domeCommand("dome athome#", sResp);
-#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::isDomeAtHome] z# response = %s\n", timestamp, sResp.c_str());
-    fflush(Logfile);
-#endif
     if(nErr) {
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isDomeAtHome] ERROR : " << nErr << " , sResp : " << sResp << std::endl;
+        m_sLogFile.flush();
+#endif
         return false;
     }
 
@@ -811,10 +694,8 @@ bool CLunaticoBeaver::isDomeAtHome()
         }
         catch(const std::exception& e) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-            ltime = time(NULL);
-            timestamp = asctime(localtime(&ltime));
-            timestamp[strlen(timestamp) - 1] = 0;
-            fprintf(Logfile, "[%s] [CLunaticoBeaver::isDomeAtHome] conversion exception = %s\n", timestamp, e.what());
+            m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isDomeAtHome] conversion exception : " << e.what() << std::endl;
+            m_sLogFile.flush();
 #endif
             return ERR_CMDFAILED;
         }
@@ -825,12 +706,9 @@ bool CLunaticoBeaver::isDomeAtHome()
     if(nTmp == AT_HOME)
         bAthome = true;
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::isDomeAtHome] nTmp = %d\n", timestamp, nTmp);
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::isDomeAtHome] bAthome : %s\n", timestamp, bAthome?"True":"False");
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isDomeAtHome] nTmp    : " << m_nDomeRotStatus << std::endl;
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isDomeAtHome] bAthome : " << (bAthome?"Yes":"No") << std::endl;
+    m_sLogFile.flush();
 #endif
 
     return bAthome;
@@ -840,8 +718,8 @@ bool CLunaticoBeaver::isDomeAtHome()
 int CLunaticoBeaver::syncDome(double dAz, double dEl)
 {
     int nErr = PLUGIN_OK;
-    char szBuf[SERIAL_BUFFER_SIZE];
     std::string sResp;
+    std::stringstream ssTmp;
 
     if(!m_bIsConnected)
         return NOT_CONNECTED;
@@ -850,15 +728,12 @@ int CLunaticoBeaver::syncDome(double dAz, double dEl)
         return nErr;
 
     m_dCurrentAzPosition = dAz;
-    snprintf(szBuf, SERIAL_BUFFER_SIZE, "!dome setaz %3.2f#", dAz);
-    nErr = domeCommand(std::string(szBuf), sResp);
+    ssTmp << "!dome setaz " << std::fixed << std::setprecision(2) << dAz << "#";
+    nErr = domeCommand(ssTmp.str(), sResp);
     if(nErr) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::syncDome] ERROR = %d\n", timestamp, nErr);
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [syncDome] ERROR : " << nErr << " , sResp : " << sResp << std::endl;
+        m_sLogFile.flush();
 #endif
         return nErr;
     }
@@ -896,11 +771,8 @@ int CLunaticoBeaver::unparkDome()
     }
     else {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::unparkDome] m_dParkAz = %3.3f\n", timestamp, m_dParkAz);
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [unparkDome] m_dParkAz : "  << std::fixed << std::setprecision(2) << std::fixed << std::setprecision(2) << m_dParkAz << std::endl;
+        m_sLogFile.flush();
 #endif
         syncDome(m_dParkAz, m_dCurrentElPosition);
         m_bParked = false;
@@ -929,11 +801,8 @@ int CLunaticoBeaver::gotoAzimuth(double dNewAz)
     nErr = domeCommand(ssTmp.str(), sResp);
     if(nErr) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::gotoAzimuth] ERROR = %d\n", timestamp, nErr);
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [gotoAzimuth] ERROR : " << nErr << " , sResp : " << sResp << std::endl;
+        m_sLogFile.flush();
 #endif
         return nErr;
     }
@@ -957,11 +826,8 @@ int CLunaticoBeaver::openShutter()
         return nErr;
 
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::openShutter] m_bShutterPresent = %s\n", timestamp, m_bShutterPresent?"Yes":"No");
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [openShutter] m_bShutterPresent : " << (m_bShutterPresent?"Yes":"No") << std::endl;
+    m_sLogFile.flush();
 #endif
     if(!m_bShutterPresent) {
         return SB_OK;
@@ -969,22 +835,16 @@ int CLunaticoBeaver::openShutter()
 
     getBatteryLevels(dShutterVolts, dShutterCutOff);
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::openShutter] Opening shutter\n", timestamp);
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [openShutter] Opening shutter." << std::endl;
+    m_sLogFile.flush();
 #endif
 
 	
     nErr = domeCommand("!dome openshutter#", sResp);
     if(nErr) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::openShutter] ERROR = %d\n", timestamp, nErr);
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [openShutter] ERROR : " << nErr << " , sResp : " << sResp << std::endl;
+        m_sLogFile.flush();
 #endif
     }
     return nErr;
@@ -1004,11 +864,8 @@ int CLunaticoBeaver::closeShutter()
         return nErr;
 
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::closeShutter] m_bShutterPresent = %s\n", timestamp, m_bShutterPresent?"Yes":"No");
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [closeShutter] m_bShutterPresent : " << (m_bShutterPresent?"Yes":"No") << std::endl;
+    m_sLogFile.flush();
 #endif
 
     if(!m_bShutterPresent) {
@@ -1018,29 +875,23 @@ int CLunaticoBeaver::closeShutter()
     getBatteryLevels(dShutterVolts, dShutterCutOff);
 
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::closeShutter] Closing shutter\n", timestamp);
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [closeShutter] Closing shutter." << std::endl;
+    m_sLogFile.flush();
 #endif
 
 	
     nErr = domeCommand("!dome closeshutter#", sResp);
     if(nErr) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::openShutter] closeShutter = %d\n", timestamp, nErr);
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [closeShutter] ERROR : " << nErr << " , sResp : " << sResp << std::endl;
+        m_sLogFile.flush();
 #endif
     }
 
     return nErr;
 }
 
-int CLunaticoBeaver::getFirmwareVersion(char *szVersion, int nStrMaxLen)
+int CLunaticoBeaver::getFirmwareVersion(std::string &sVersion)
 {
     int nErr = PLUGIN_OK;
     std::string sResp;
@@ -1054,16 +905,12 @@ int CLunaticoBeaver::getFirmwareVersion(char *szVersion, int nStrMaxLen)
     if(m_bCalibrating)
         return nErr;
 
-    memset(szVersion, 0, nStrMaxLen);
-
+    sVersion.clear();
     nErr = domeCommand("!seletek version#", sResp);
     if(nErr) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::getFirmwareVersion] ERROR = %s\n", timestamp, sResp.c_str());
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getFirmwareVersion] ERROR : " << nErr << " , sResp : " << sResp << std::endl;
+        m_sLogFile.flush();
 #endif
         return nErr;
     }
@@ -1071,11 +918,8 @@ int CLunaticoBeaver::getFirmwareVersion(char *szVersion, int nStrMaxLen)
     nErr = parseFields(sResp, firmwareFields, ':');
     if(nErr) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::getFirmwareVersion] parsing error = %s\n", timestamp, sResp.c_str());
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getFirmwareVersion] parsing error : " << nErr << std::endl;
+        m_sLogFile.flush();
 #endif
         return ERR_CMDFAILED;
     }
@@ -1084,23 +928,20 @@ int CLunaticoBeaver::getFirmwareVersion(char *szVersion, int nStrMaxLen)
         std::stringstream ssTmp;
         if(firmwareFields[1].size()>=3) {
             ssTmp << firmwareFields[1].at(1) << "." << firmwareFields[1].at(2) << "." << firmwareFields[1].at(3);
-            strncpy(szVersion, ssTmp.str().c_str(), nStrMaxLen);
+            sVersion.assign(ssTmp.str());
         }
     }
 
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::getFirmwareVersion] firmware = %s\n", timestamp, szVersion);
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getFirmwareVersion] firmware : " << sVersion << std::endl;
+    m_sLogFile.flush();
 #endif
 
     return nErr;
 }
 
 
-int CLunaticoBeaver::getShutterFirmwareVersion(char *szVersion, int nStrMaxLen)
+int CLunaticoBeaver::getShutterFirmwareVersion(std::string &sVersion)
 {
     int nErr = PLUGIN_OK;
     std::string sResp;
@@ -1114,16 +955,12 @@ int CLunaticoBeaver::getShutterFirmwareVersion(char *szVersion, int nStrMaxLen)
     if(m_bCalibrating)
         return nErr;
 
-    memset(szVersion, 0, nStrMaxLen);
-
+    sVersion.clear();
     nErr = shutterCommand("seletek version", sResp);
     if(nErr) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::getShutterFirmwareVersion] ERROR = %s\n", timestamp, sResp.c_str());
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getShutterFirmwareVersion] ERROR : " << nErr << " , sResp : " << sResp << std::endl;
+        m_sLogFile.flush();
 #endif
         return nErr;
     }
@@ -1136,16 +973,13 @@ int CLunaticoBeaver::getShutterFirmwareVersion(char *szVersion, int nStrMaxLen)
         std::stringstream ssTmp;
         if(firmwareFields[1].size()>=3) {
             ssTmp << firmwareFields[1].at(1) << "." << firmwareFields[1].at(2) << "." << firmwareFields[1].at(3);
-            strncpy(szVersion, ssTmp.str().c_str(), nStrMaxLen);
+            sVersion.assign(ssTmp.str());
         }
     }
 
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::getShutterFirmwareVersion] firmware = %s\n", timestamp, szVersion);
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getShutterFirmwareVersion] Shutter firmware : " << sVersion << std::endl;
+    m_sLogFile.flush();
 #endif
 
     return nErr;
@@ -1167,22 +1001,16 @@ int CLunaticoBeaver::goHome()
             return PLUGIN_OK;
     }
 #ifdef PLUGIN_DEBUG
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::goHome] \n", timestamp);
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [goHome]" << std::endl;
+    m_sLogFile.flush();
 #endif
 
     m_nHomingTries = 0;
     nErr = domeCommand("!dome gohome#", sResp);
     if(nErr) {
 #ifdef PLUGIN_DEBUG
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::goHome] ERROR = %d\n", timestamp, nErr);
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [goHome] ERROR : " << nErr << " , sResp : " << sResp << std::endl;
+        m_sLogFile.flush();
 #endif
         return nErr;
     }
@@ -1204,11 +1032,8 @@ int CLunaticoBeaver::calibrateDome()
     nErr = domeCommand("!domerot calibrate 2#", sResp);
     if(nErr) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::calibrate] ERROR = %d\n", timestamp, nErr);
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [calibrate] ERROR : " << nErr << " , sResp : " << sResp << std::endl;
+        m_sLogFile.flush();
 #endif
         return nErr;
     }
@@ -1231,11 +1056,8 @@ int CLunaticoBeaver::calibrateShutter()
     nErr = domeCommand("!dome autocalshutter#", sResp);
     if(nErr) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::calibrate] ERROR = %d\n", timestamp, nErr);
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [calibrateShutter] ERROR : " << nErr << " , sResp : " << sResp << std::endl;
+        m_sLogFile.flush();
 #endif
         return nErr;
     }
@@ -1252,22 +1074,16 @@ int CLunaticoBeaver::isGoToComplete(bool &bComplete)
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::isGoToComplete]\n", timestamp);
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isGoToComplete]" << std::endl;
+    m_sLogFile.flush();
 #endif
 
     bComplete = false;
     if(isDomeMoving()) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::isGoToComplete] Dome is still moving\n", timestamp);
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::isGoToComplete] bComplete = %s\n", timestamp, bComplete?"True":"False");
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isGoToComplete] Dome is still moving" << std::endl;
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isGoToComplete] bComplete : " << (bComplete?"True":"False") << std::endl;
+        m_sLogFile.flush();
 #endif
         return nErr;
     }
@@ -1275,12 +1091,9 @@ int CLunaticoBeaver::isGoToComplete(bool &bComplete)
     getDomeAz(dDomeAz);
 
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::isGoToComplete] DomeAz    = %3.2f\n", timestamp, dDomeAz);
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::isGoToComplete] m_dGotoAz = %3.2f\n", timestamp, m_dGotoAz);
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isGoToComplete] dDomeAz : "  << std::fixed << std::setprecision(2) << std::fixed << std::setprecision(2) << dDomeAz << std::endl;
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isGoToComplete] m_dGotoAz : "  << std::fixed << std::setprecision(2) << std::fixed << std::setprecision(2) << m_dGotoAz << std::endl;
+    m_sLogFile.flush();
 #endif
 
     if(checkBoundaries(m_dGotoAz, dDomeAz)) {
@@ -1290,11 +1103,8 @@ int CLunaticoBeaver::isGoToComplete(bool &bComplete)
     else {
         // we're not moving and we're not at the final destination !!!
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::isGoToComplete] ***** ERROR **** domeAz = %3.2f, m_dGotoAz = %3.2f\n", timestamp, dDomeAz, m_dGotoAz);
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isGoToComplete]  ***** ERROR **** domeAz =  dDomeAz : "  << std::fixed << std::setprecision(2) << std::fixed << std::setprecision(2) << dDomeAz << " , m_dGotoAz : "  << std::fixed << std::setprecision(2) << std::fixed << std::setprecision(2) << m_dGotoAz << std::endl;
+        m_sLogFile.flush();
 #endif
         if(m_nGotoTries == 0) {
             bComplete = false;
@@ -1308,11 +1118,8 @@ int CLunaticoBeaver::isGoToComplete(bool &bComplete)
     }
 
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::isGoToComplete] bComplete = %s\n", timestamp, bComplete?"True":"False");
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isGoToComplete] bComplete : " << (bComplete?"True":"False") << std::endl;
+    m_sLogFile.flush();
 #endif
 
     return nErr;
@@ -1325,11 +1132,8 @@ bool CLunaticoBeaver::checkBoundaries(double dGotoAz, double dDomeAz)
     double roundedGotoAz;
 
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::checkBoundaries]\n", timestamp);
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [checkBoundaries]" << std::endl;
+    m_sLogFile.flush();
 #endif
 
     // we need to test "large" depending on the heading error and movement coasting
@@ -1388,11 +1192,8 @@ int CLunaticoBeaver::isOpenComplete(bool &bComplete)
     }
 
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::isOpenComplete] bComplete = %s\n", timestamp, bComplete?"True":"False");
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isOpenComplete] bComplete : " << (bComplete?"True":"False") << std::endl;
+    m_sLogFile.flush();
 #endif
 
     return nErr;
@@ -1429,11 +1230,8 @@ int CLunaticoBeaver::isCloseComplete(bool &bComplete)
     }
 
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::isCloseComplete] bComplete = %s\n", timestamp, bComplete?"True":"False");
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isCloseComplete] bComplete : " << (bComplete?"True":"False") << std::endl;
+    m_sLogFile.flush();
 #endif
 
     return nErr;
@@ -1453,12 +1251,9 @@ int CLunaticoBeaver::isParkComplete(bool &bComplete)
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::isParkComplete] m_bParking = %s\n", timestamp, m_bParking?"True":"False");
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::isParkComplete] bComplete = %s\n", timestamp, bComplete?"True":"False");
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isParkComplete] m_bParking : " << (m_bParking?"True":"False") << std::endl;
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isParkComplete] bComplete  : " << (bComplete?"True":"False") << std::endl;
+    m_sLogFile.flush();
 #endif
 
     if(isDomeMoving()) {
@@ -1472,11 +1267,8 @@ int CLunaticoBeaver::isParkComplete(bool &bComplete)
         nErr = isFindHomeComplete(bFoundHome);
         if(bFoundHome) { // we're home, now park
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-            ltime = time(NULL);
-            timestamp = asctime(localtime(&ltime));
-            timestamp[strlen(timestamp) - 1] = 0;
-            fprintf(Logfile, "[%s] [CLunaticoBeaver::isParkComplete] found home, now parking\n", timestamp);
-            fflush(Logfile);
+            m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isParkComplete] found home, now parking." << std::endl;
+            m_sLogFile.flush();
 #endif
             m_bParking = false;
             nErr = domeCommand("!dome gopark#", sResp);
@@ -1498,11 +1290,8 @@ int CLunaticoBeaver::isParkComplete(bool &bComplete)
     }
 
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::isParkComplete] bComplete = %s\n", timestamp, bComplete?"True":"False");
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isParkComplete] bComplete  : " << (bComplete?"True":"False") << std::endl;
+    m_sLogFile.flush();
 #endif
 
     return nErr;
@@ -1523,20 +1312,14 @@ int CLunaticoBeaver::isUnparkComplete(bool &bComplete)
     if(!m_bParked) {
         bComplete = true;
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::isUnparkComplete] UNPARKED \n", timestamp);
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isUnparkComplete] Unparked." << std::endl;
+        m_sLogFile.flush();
 #endif
     }
     else if (m_bUnParking) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::isUnparkComplete] unparking.. checking if we're home \n", timestamp);
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isUnparkComplete] unparking.. checking if we're home." << std::endl;
+        m_sLogFile.flush();
 #endif
         nErr = isFindHomeComplete(bComplete);
         if(nErr)
@@ -1550,12 +1333,9 @@ int CLunaticoBeaver::isUnparkComplete(bool &bComplete)
     }
 
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::isUnparkComplete] m_bParked = %s\n", timestamp, m_bParked?"True":"False");
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::isUnparkComplete] bComplete = %s\n", timestamp, bComplete?"True":"False");
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isUnparkComplete] m_bParked : " << (m_bParked?"True":"False") << std::endl;
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isUnparkComplete] bComplete : " << (bComplete?"True":"False") << std::endl;
+    m_sLogFile.flush();
 #endif
 
     return nErr;
@@ -1572,21 +1352,15 @@ int CLunaticoBeaver::isFindHomeComplete(bool &bComplete)
         return nErr;
 
 #ifdef PLUGIN_DEBUG
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::isFindHomeComplete]\n", timestamp);
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isFindHomeComplete]" << std::endl;
+    m_sLogFile.flush();
 #endif
 
     if(isDomeMoving()) {
         bComplete = false;
 #ifdef PLUGIN_DEBUG
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::isFindHomeComplete] still moving\n", timestamp);
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isFindHomeComplete] still moving." << std::endl;
+        m_sLogFile.flush();
 #endif
         return nErr;
 
@@ -1599,26 +1373,18 @@ int CLunaticoBeaver::isFindHomeComplete(bool &bComplete)
         syncDome(m_dHomeAz, m_dCurrentElPosition);
         m_nHomingTries = 0;
 #ifdef PLUGIN_DEBUG
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::isFindHomeComplete] At Home\n", timestamp);
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isFindHomeComplete] At Home." << std::endl;
+        m_sLogFile.flush();
 #endif
     }
     else {
         // we're not moving and we're not at the home position !!!
 #ifdef PLUGIN_DEBUG
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::isFindHomeComplete] Not moving and not at home !!!\n", timestamp);
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isFindHomeComplete] Not moving and not at home !!!" << std::endl;
+        m_sLogFile.flush();
 #endif
         bComplete = false;
         m_bParked = false;
-        // sometimes we pass the home sensor and the dome doesn't rotate back enough to detect it.
-        // this is mostly the case with firmware 1.10 with the new error correction ...
         // so give it another try
         if(m_nHomingTries == 0) {
             m_nHomingTries = 1;
@@ -1656,10 +1422,8 @@ int CLunaticoBeaver::isCalibratingDomeComplete(bool &bComplete)
         }
         catch(const std::exception& e) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-            ltime = time(NULL);
-            timestamp = asctime(localtime(&ltime));
-            timestamp[strlen(timestamp) - 1] = 0;
-            fprintf(Logfile, "[%s] [CLunaticoBeaver::isCalibratingDomeComplete] conversion exception = %s\n", timestamp, e.what());
+            m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isCalibratingDomeComplete] conversion exception : " << e.what() << std::endl;
+            m_sLogFile.flush();
 #endif
             return ERR_CMDFAILED;
         }
@@ -1683,20 +1447,14 @@ int CLunaticoBeaver::isCalibratingDomeComplete(bool &bComplete)
         m_bCalibrating = false;
         nErr = getDomeStepPerDeg(m_dStepsPerDeg);
 #ifdef PLUGIN_DEBUG
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::isCalibratingDomeComplete] final m_dStepsPerDeg = %3.2f\n", timestamp, m_dStepsPerDeg);
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isCalibratingDomeComplete] final m_dStepsPerDeg  : "  << std::fixed << std::setprecision(2) << std::fixed << std::setprecision(2) << m_dStepsPerDeg << std::endl;
+        m_sLogFile.flush();
 #endif
     }
 #ifdef PLUGIN_DEBUG
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::isCalibratingDomeComplete] final m_bCalibrating = %s\n", timestamp, m_bCalibrating?"True":"False");
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::isCalibratingDomeComplete] final bComplete = %s\n", timestamp, bComplete?"True":"False");
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isCalibratingDomeComplete] final m_bCalibrating  : " << (m_bCalibrating?"True":"False") << std::endl;
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isCalibratingDomeComplete] final bComplete       : " << (bComplete?"True":"False") << std::endl;
+    m_sLogFile.flush();
 #endif
     return nErr;
 }
@@ -1726,10 +1484,8 @@ int CLunaticoBeaver::isCalibratingShutterComplete(bool &bComplete)
         }
         catch(const std::exception& e) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-            ltime = time(NULL);
-            timestamp = asctime(localtime(&ltime));
-            timestamp[strlen(timestamp) - 1] = 0;
-            fprintf(Logfile, "[%s] [CLunaticoBeaver::isCalibratingShutterComplete] conversion exception = %s\n", timestamp, e.what());
+            m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isCalibratingShutterComplete] conversion exception : " << e.what() << std::endl;
+            m_sLogFile.flush();
 #endif
             return ERR_CMDFAILED;
         }
@@ -1753,12 +1509,9 @@ int CLunaticoBeaver::isCalibratingShutterComplete(bool &bComplete)
         m_bCalibrating = false;
 
 #ifdef PLUGIN_DEBUG
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::isCalibratingShutterComplete] final m_bCalibrating = %s\n", timestamp, m_bCalibrating?"True":"False");
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::isCalibratingShutterComplete] final bComplete = %s\n", timestamp, bComplete?"True":"False");
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isCalibratingShutterComplete] final m_bCalibrating  : " << (m_bCalibrating?"True":"False") << std::endl;
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isCalibratingShutterComplete] final bComplete       : " << (bComplete?"True":"False") << std::endl;
+    m_sLogFile.flush();
 #endif
     return nErr;
 }
@@ -1814,10 +1567,8 @@ int CLunaticoBeaver::getShutterPresent(bool &bShutterPresent)
         }
         catch(const std::exception& e) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-            ltime = time(NULL);
-            timestamp = asctime(localtime(&ltime));
-            timestamp[strlen(timestamp) - 1] = 0;
-            fprintf(Logfile, "[%s] [CLunaticoBeaver::getShutterPresent] conversion exception = %s\n", timestamp, e.what());
+            m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getShutterPresent] conversion exception : " << e.what() << std::endl;
+            m_sLogFile.flush();
 #endif
             return ERR_CMDFAILED;
         }
@@ -1825,12 +1576,9 @@ int CLunaticoBeaver::getShutterPresent(bool &bShutterPresent)
     }
 
 #ifdef PLUGIN_DEBUG
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::getShutterPresent] szResp =  %s\n", timestamp, sResp.c_str());
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::getShutterPresent] m_bShutterPresent =  %s\n", timestamp, m_bShutterPresent?"Yes":"No");
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getShutterPresent] sResp             : " << sResp << std::endl;
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getShutterPresent] m_bShutterPresent : " << (m_bShutterPresent?"True":"False") << std::endl;
+    m_sLogFile.flush();
 #endif
 
 
@@ -1885,34 +1633,25 @@ int CLunaticoBeaver::isShutterDetected(bool &bDetected)
     if(nErr)
         return nErr;
 #ifdef PLUGIN_DEBUG
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::isShutterDetected] szFirmware = %s\n", timestamp, sResp.c_str());
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isShutterDetected] szFirmware : " << sResp << std::endl;
+    m_sLogFile.flush();
 #endif
 
     nErr = parseFields(sResp, firmwareFields, ':');
     if(nErr) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::isShutterDetected] parsing error = %s\n", timestamp, sResp.c_str());
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isShutterDetected] parsing error : " << nErr << std::endl;
+        m_sLogFile.flush();
 #endif
         return ERR_CMDFAILED;
     }
 
     if(firmwareFields.size()>=2) {
 #ifdef PLUGIN_DEBUG
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::isShutterDetected] sResp.size() = %lu\n", timestamp, sResp.size());
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::isShutterDetected] sResp = %s\n", timestamp, sResp.c_str());
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::isShutterDetected] sResp.find(\"error\") = %lu\n", timestamp, sResp.find("error"));
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isShutterDetected] sResp.size()          : " << sResp.size() << std::endl;
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isShutterDetected] sResp                 : " << sResp << std::endl;
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isShutterDetected] sResp.find(\"error\") : " << sResp.find("error") << std::endl;
+        m_sLogFile.flush();
 #endif
         if(firmwareFields[1].size()>5 && firmwareFields[1].find("error") == 0) {
             bDetected = false;
@@ -1924,11 +1663,8 @@ int CLunaticoBeaver::isShutterDetected(bool &bDetected)
 
 
 #ifdef PLUGIN_DEBUG
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::isShutterDetected] bDetected = %s\n", timestamp, bDetected?"True":"False");
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isShutterDetected] bDetected : " << (bDetected?"True":"False") << std::endl;
+    m_sLogFile.flush();
 #endif
 
     return nErr;
@@ -1939,11 +1675,8 @@ int CLunaticoBeaver::isShutterDetected(bool &bDetected)
 int CLunaticoBeaver::getDomeStepPerRev()
 {
 #ifdef PLUGIN_DEBUG
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::getNbTicksPerRev] m_bIsConnected = %s\n", timestamp, m_bIsConnected?"True":"False");
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getNbTicksPerRev] m_bIsConnected : " << (m_bIsConnected?"Yes":"No") << std::endl;
+    m_sLogFile.flush();
 #endif
 
     if(m_bIsConnected) {
@@ -1951,11 +1684,8 @@ int CLunaticoBeaver::getDomeStepPerRev()
         m_nNbStepPerRev = int(m_dStepsPerDeg*360.0);
     }
 #ifdef PLUGIN_DEBUG
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::getNbTicksPerRev] m_nNbStepPerRev = %d\n", timestamp, m_nNbStepPerRev);
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getNbTicksPerRev] m_nNbStepPerRev : " << m_nNbStepPerRev << std::endl;
+    m_sLogFile.flush();
 #endif
 
     return m_nNbStepPerRev;
@@ -1965,8 +1695,8 @@ int CLunaticoBeaver::getDomeStepPerRev()
 int CLunaticoBeaver::setDomeStepPerRev(int nSteps)
 {
     int nErr = PLUGIN_OK;
+    std::stringstream ssTmp;
     std::string sResp;
-    char szBuf[SERIAL_BUFFER_SIZE];
     double dStepPerDeg = 0;
 
     if(m_bCalibrating)
@@ -1974,8 +1704,8 @@ int CLunaticoBeaver::setDomeStepPerRev(int nSteps)
 
     dStepPerDeg = float(nSteps)/360.0;
 
-    snprintf(szBuf, SERIAL_BUFFER_SIZE, " !domerot setstepsperdegree %3.6f#", dStepPerDeg);
-    nErr = domeCommand(std::string(szBuf), sResp);
+    ssTmp << "!domerot setstepsperdegree  " << std::fixed << std::setprecision(6) << dStepPerDeg << "#";
+    nErr = domeCommand(ssTmp.str(), sResp);
     if(nErr)
         return nErr;
     m_nNbStepPerRev = nSteps;
@@ -1996,11 +1726,8 @@ int CLunaticoBeaver::getDomeStepPerDeg(double &dStepsPerDeg)
     nErr = domeCommand("!domerot getstepsperdegree#", sResp);
     if(nErr) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::getDomeStepPerDeg] ERROR = %s\n", timestamp, sResp.c_str());
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getDomeStepPerDeg] ERROR : " << nErr << std::endl;
+        m_sLogFile.flush();
 #endif
         return nErr;
     }
@@ -2012,10 +1739,8 @@ int CLunaticoBeaver::getDomeStepPerDeg(double &dStepsPerDeg)
         }
         catch(const std::exception& e) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-            ltime = time(NULL);
-            timestamp = asctime(localtime(&ltime));
-            timestamp[strlen(timestamp) - 1] = 0;
-            fprintf(Logfile, "[%s] [CLunaticoBeaver::getDomeStepPerDeg] conversion exception = %s\n", timestamp, e.what());
+            m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getDomeStepPerDeg] conversion exception : " << e.what() << std::endl;
+            m_sLogFile.flush();
 #endif
             return ERR_CMDFAILED;
         }
@@ -2055,17 +1780,16 @@ double CLunaticoBeaver::getHomeAz()
 int CLunaticoBeaver::setHomeAz(double dAz)
 {
     int nErr = PLUGIN_OK;
-    char szBuf[SERIAL_BUFFER_SIZE];
     std::string sResp;
+    std::stringstream ssTmp;
 
     m_dHomeAz = dAz;
 
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
-
-    snprintf(szBuf, SERIAL_BUFFER_SIZE, "!domerot sethome %3.2f#", dAz);
-    nErr = domeCommand(std::string(szBuf), sResp);
+    ssTmp << "!domerot sethome  " << std::fixed << std::setprecision(2) << dAz << "#";
+    nErr = domeCommand(ssTmp.str(), sResp);
     return nErr;
 }
 
@@ -2082,7 +1806,7 @@ double CLunaticoBeaver::getParkAz()
 int CLunaticoBeaver::setParkAz(double dAz)
 {
     int nErr = PLUGIN_OK;
-    char szBuf[SERIAL_BUFFER_SIZE];
+    std::stringstream ssTmp;
     std::string sResp;
 
     m_dParkAz = dAz;
@@ -2090,8 +1814,8 @@ int CLunaticoBeaver::setParkAz(double dAz)
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
-    snprintf(szBuf, SERIAL_BUFFER_SIZE, "!domerot setpark %3.2f#", dAz);
-    nErr = domeCommand(std::string(szBuf), sResp);
+    ssTmp << "!domerot setpark  " << std::fixed << std::setprecision(2) << dAz << "#";
+    nErr = domeCommand(ssTmp.str(), sResp);
     return nErr;
 }
 
@@ -2133,16 +1857,13 @@ int CLunaticoBeaver::getRainSensorStatus(int &nStatus)
     if(nErr)
         return nErr;
 
+    nStatus = m_nRainSensorstate;
+
 #ifdef PLUGIN_DEBUG
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::getRainSensorStatus] nStatus =  %d\n", timestamp, nStatus);
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getRainSensorStatus] nStatus : " << (m_nRainSensorstate==RAINING?"Raining":"Not Raining") << std::endl;
+    m_sLogFile.flush();
 #endif
 
-    if(m_nIsRaining)
-        nStatus = RAINING;
     return nErr;
 }
 
@@ -2158,11 +1879,8 @@ int CLunaticoBeaver::getRotationSpeed(int &nMinSpeed, int &nMaxSpeed, int &nAcce
     nErr = domeCommand("!domerot getminspeed#", sResp);
     if(nErr) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::getRotationSpeed] ERROR = %s\n", timestamp, sResp.c_str());
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getRotationSpeed] getminspeed ERROR : " << nErr << " , sResp : " << sResp << std::endl;
+        m_sLogFile.flush();
 #endif
         return nErr;
     }
@@ -2174,10 +1892,8 @@ int CLunaticoBeaver::getRotationSpeed(int &nMinSpeed, int &nMaxSpeed, int &nAcce
         }
         catch(const std::exception& e) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-            ltime = time(NULL);
-            timestamp = asctime(localtime(&ltime));
-            timestamp[strlen(timestamp) - 1] = 0;
-            fprintf(Logfile, "[%s] [CLunaticoBeaver::getRotationSpeed] conversion exception = %s\n", timestamp, e.what());
+            m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getRotationSpeed] conversion exception : " << e.what() << std::endl;
+            m_sLogFile.flush();
 #endif
             return ERR_CMDFAILED;
         }
@@ -2186,11 +1902,9 @@ int CLunaticoBeaver::getRotationSpeed(int &nMinSpeed, int &nMaxSpeed, int &nAcce
     nErr = domeCommand("!domerot getmaxspeed#", sResp);
     if(nErr) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::getRotationSpeed] ERROR = %s\n", timestamp, sResp.c_str());
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getRotationSpeed] getmaxspeed ERROR : " << nErr << " , sResp : " << sResp << std::endl;
+        m_sLogFile.flush();
+
 #endif
         return nErr;
     }
@@ -2202,10 +1916,8 @@ int CLunaticoBeaver::getRotationSpeed(int &nMinSpeed, int &nMaxSpeed, int &nAcce
         }
         catch(const std::exception& e) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-            ltime = time(NULL);
-            timestamp = asctime(localtime(&ltime));
-            timestamp[strlen(timestamp) - 1] = 0;
-            fprintf(Logfile, "[%s] [CLunaticoBeaver::getRotationSpeed] conversion exception = %s\n", timestamp, e.what());
+            m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getRotationSpeed] conversion exception : " << e.what() << std::endl;
+            m_sLogFile.flush();
 #endif
             return ERR_CMDFAILED;
         }
@@ -2214,11 +1926,8 @@ int CLunaticoBeaver::getRotationSpeed(int &nMinSpeed, int &nMaxSpeed, int &nAcce
     nErr = domeCommand("!domerot getacceleration#", sResp);
     if(nErr) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::getRotationSpeed] ERROR = %s\n", timestamp, sResp.c_str());
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getRotationSpeed] getacceleration ERROR : " << nErr << " , sResp : " << sResp << std::endl;
+        m_sLogFile.flush();
 #endif
         return nErr;
     }
@@ -2230,10 +1939,8 @@ int CLunaticoBeaver::getRotationSpeed(int &nMinSpeed, int &nMaxSpeed, int &nAcce
         }
         catch(const std::exception& e) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-            ltime = time(NULL);
-            timestamp = asctime(localtime(&ltime));
-            timestamp[strlen(timestamp) - 1] = 0;
-            fprintf(Logfile, "[%s] [CLunaticoBeaver::getRotationSpeed] conversion exception = %s\n", timestamp, e.what());
+            m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getRotationSpeed] conversion exception : " << e.what() << std::endl;
+            m_sLogFile.flush();
 #endif
             return ERR_CMDFAILED;
         }
@@ -2241,13 +1948,10 @@ int CLunaticoBeaver::getRotationSpeed(int &nMinSpeed, int &nMaxSpeed, int &nAcce
 
 
 #ifdef PLUGIN_DEBUG
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::getRotationSpeed] nMinSpeed =  %d\n", timestamp, nMinSpeed);
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::getRotationSpeed] nMaxSpeed =  %d\n", timestamp, nMaxSpeed);
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::getRotationSpeed] nAccel =  %d\n", timestamp, nAccel);
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getRotationSpeed] nMinSpeed : " << nMinSpeed << std::endl;
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getRotationSpeed] nMaxSpeed : " << nMaxSpeed << std::endl;
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getRotationSpeed] nAccel    : " << nAccel << std::endl;
+    m_sLogFile.flush();
 #endif
 
     return nErr;
@@ -2294,11 +1998,8 @@ int CLunaticoBeaver::getShutterSpeed(int &nMinSpeed, int &nMaxSpeed, int &nAccel
     nErr = domeCommand("!dome getshutterminspeed#", sResp);
     if(nErr) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::getShutterSpeed] ERROR = %s\n", timestamp, sResp.c_str());
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getShutterSpeed] getshutterminspeed ERROR : " << nErr << " , sResp : " << sResp << std::endl;
+        m_sLogFile.flush();
 #endif
         return nErr;
     }
@@ -2310,10 +2011,8 @@ int CLunaticoBeaver::getShutterSpeed(int &nMinSpeed, int &nMaxSpeed, int &nAccel
         }
         catch(const std::exception& e) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-            ltime = time(NULL);
-            timestamp = asctime(localtime(&ltime));
-            timestamp[strlen(timestamp) - 1] = 0;
-            fprintf(Logfile, "[%s] [CLunaticoBeaver::getShutterSpeed] conversion exception = %s\n", timestamp, e.what());
+            m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getShutterSpeed] conversion exception : " << e.what() << std::endl;
+            m_sLogFile.flush();
 #endif
             return ERR_CMDFAILED;
         }
@@ -2322,11 +2021,8 @@ int CLunaticoBeaver::getShutterSpeed(int &nMinSpeed, int &nMaxSpeed, int &nAccel
     nErr = domeCommand("!dome getshuttermaxspeed#", sResp);
     if(nErr) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::getShutterSpeed] ERROR = %s\n", timestamp, sResp.c_str());
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getShutterSpeed] getshuttermaxspeed ERROR : " << nErr << " , sResp : " << sResp << std::endl;
+        m_sLogFile.flush();
 #endif
         return nErr;
     }
@@ -2338,10 +2034,8 @@ int CLunaticoBeaver::getShutterSpeed(int &nMinSpeed, int &nMaxSpeed, int &nAccel
         }
         catch(const std::exception& e) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-            ltime = time(NULL);
-            timestamp = asctime(localtime(&ltime));
-            timestamp[strlen(timestamp) - 1] = 0;
-            fprintf(Logfile, "[%s] [CLunaticoBeaver::getShutterSpeed] conversion exception = %s\n", timestamp, e.what());
+            m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getShutterSpeed] conversion exception : " << e.what() << std::endl;
+            m_sLogFile.flush();
 #endif
             return ERR_CMDFAILED;
         }
@@ -2350,11 +2044,8 @@ int CLunaticoBeaver::getShutterSpeed(int &nMinSpeed, int &nMaxSpeed, int &nAccel
     nErr = domeCommand("!dome getshutteracceleration#", sResp);
     if(nErr) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::getShutterSpeed] ERROR = %s\n", timestamp, sResp.c_str());
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getShutterSpeed] getshutteracceleration ERROR : " << nErr << " , sResp : " << sResp << std::endl;
+        m_sLogFile.flush();
 #endif
         return nErr;
     }
@@ -2366,10 +2057,8 @@ int CLunaticoBeaver::getShutterSpeed(int &nMinSpeed, int &nMaxSpeed, int &nAccel
         }
         catch(const std::exception& e) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-            ltime = time(NULL);
-            timestamp = asctime(localtime(&ltime));
-            timestamp[strlen(timestamp) - 1] = 0;
-            fprintf(Logfile, "[%s] [CLunaticoBeaver::getShutterSpeed] conversion exception = %s\n", timestamp, e.what());
+            m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getShutterSpeed] conversion exception : " << e.what() << std::endl;
+            m_sLogFile.flush();
 #endif
             return ERR_CMDFAILED;
         }
@@ -2377,13 +2066,10 @@ int CLunaticoBeaver::getShutterSpeed(int &nMinSpeed, int &nMaxSpeed, int &nAccel
 
 
 #ifdef PLUGIN_DEBUG
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::getShutterSpeed] nMinSpeed =  %d\n", timestamp, nMinSpeed);
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::getShutterSpeed] nMaxSpeed =  %d\n", timestamp, nMaxSpeed);
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::getShutterSpeed] nAccel =  %d\n", timestamp, nAccel);
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getShutterSpeed] nMinSpeed : " << nMinSpeed << std::endl;
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getShutterSpeed] nMaxSpeed : " << nMaxSpeed << std::endl;
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getShutterSpeed] nAccel    : " << nAccel << std::endl;
+    m_sLogFile.flush();
 #endif
 
     return nErr;
@@ -2422,24 +2108,7 @@ int CLunaticoBeaver::setShutterSpeed(int nMinSpeed, int nMaxSpeed, int nAccel)
 
 void CLunaticoBeaver::enableRainStatusFile(bool bEnable)
 {
-    if(bEnable) {
-        if(!RainStatusfile)
-            RainStatusfile = fopen(m_sRainStatusfilePath.c_str(), "w");
-        if(RainStatusfile) {
-            m_bSaveRainStatus = true;
-        }
-        else { // if we failed to open the file.. don't log ..
-            RainStatusfile = NULL;
-            m_bSaveRainStatus = false;
-        }
-    }
-    else {
-        if(RainStatusfile) {
-            fclose(RainStatusfile);
-            RainStatusfile = NULL;
-        }
-        m_bSaveRainStatus = false;
-    }
+    m_bSaveRainStatus = bEnable;
 }
 
 void CLunaticoBeaver::getRainStatusFileName(std::string &fName)
@@ -2449,21 +2118,47 @@ void CLunaticoBeaver::getRainStatusFileName(std::string &fName)
 
 void CLunaticoBeaver::writeRainStatus()
 {
+    int nStatus;
+
 #ifdef PLUGIN_DEBUG
-    ltime = time(NULL);
-    timestamp = asctime(localtime(&ltime));
-    timestamp[strlen(timestamp) - 1] = 0;
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::writeRainStatus] m_nIsRaining =  %s\n", timestamp, m_nIsRaining==RAINING?"Raining":"Not Raining");
-    fprintf(Logfile, "[%s] [CLunaticoBeaver::writeRainStatus] m_bSaveRainStatus =  %s\n", timestamp, m_bSaveRainStatus?"YES":"NO");
-    fflush(Logfile);
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [writeRainStatus]" << std::endl;
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [writeRainStatus] m_bSaveRainStatus : " << (m_bSaveRainStatus?"YES":"NO") << std::endl;
+    m_sLogFile.flush();
 #endif
 
-    if(m_bSaveRainStatus && RainStatusfile) {
-        int nStatus;
+    if(m_bSaveRainStatus) {
         getRainSensorStatus(nStatus);
-        fseek(RainStatusfile, 0, SEEK_SET);
-        fprintf(RainStatusfile, "Raining:%s", nStatus == RAINING?"YES":"NO");
-        fflush(RainStatusfile);
+#ifdef PLUGIN_DEBUG
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [writeRainStatus] m_nRainStatus      : " << m_nRainStatus << std::endl;
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [writeRainStatus] m_nRainSensorstate : " << m_nRainSensorstate << std::endl;
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [writeRainStatus] nStatus            : " << nStatus << std::endl;
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [writeRainStatus] nStatus            : " << (nStatus==RAINING?"Raining":"Not Raining") << std::endl;
+        m_sLogFile.flush();
+#endif
+        if(m_nRainStatus != nStatus) {
+#ifdef PLUGIN_DEBUG
+            m_sLogFile << "["<<getTimeStamp()<<"]"<< " [writeRainStatus] state changed, wrinting new status : " << (nStatus==RAINING?"Raining":"Not Raining") << std::endl;
+            m_sLogFile.flush();
+#endif
+            m_nRainStatus = nStatus;
+            if(m_RainStatusfile.is_open())
+                m_RainStatusfile.close();
+            try {
+                m_RainStatusfile.open(m_sRainStatusfilePath, std::ios::out |std::ios::trunc);
+                if(m_RainStatusfile.is_open()) {
+                    m_RainStatusfile << "Raining:" << (nStatus == RAINING?"YES":"NO") << std::endl;
+                    m_RainStatusfile.close();
+                }
+            }
+            catch(const std::exception& e) {
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+                m_sLogFile << "["<<getTimeStamp()<<"]"<< " [writeRainStatus] Error writing file = " << e.what() << std::endl;
+                m_sLogFile.flush();
+#endif
+                if(m_RainStatusfile.is_open())
+                    m_RainStatusfile.close();
+            }
+        }
     }
 }
 
@@ -2477,11 +2172,8 @@ int CLunaticoBeaver::parseFields(std::string sResp, std::vector<std::string> &sv
     sResp = trim(sResp,"!#\r\n");
     if(!sResp.size()) {
 #ifdef PLUGIN_DEBUG
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::parseFields] pszResp is empty\n", timestamp);
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [parseFields] sResp is empty." << std::endl;
+        m_sLogFile.flush();
 #endif
         return ERR_CMDFAILED;
     }
@@ -2497,11 +2189,8 @@ int CLunaticoBeaver::parseFields(std::string sResp, std::vector<std::string> &sv
 
     if(svFields.size()==0) {
 #ifdef PLUGIN_DEBUG
-        ltime = time(NULL);
-        timestamp = asctime(localtime(&ltime));
-        timestamp[strlen(timestamp) - 1] = 0;
-        fprintf(Logfile, "[%s] [CLunaticoBeaver::parseFields] no field found in '%s'\n", timestamp, sResp.c_str());
-        fflush(Logfile);
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [parseFields] no field found in : '" << sResp << "'" << std::endl;
+        m_sLogFile.flush();
 #endif
         nErr = ERR_CMDFAILED;
     }
@@ -2525,3 +2214,16 @@ std::string& CLunaticoBeaver::rtrim(std::string& str, const std::string& filter)
     str.erase(str.find_last_not_of(filter) + 1);
     return str;
 }
+
+#ifdef PLUGIN_DEBUG
+const std::string CLunaticoBeaver::getTimeStamp()
+{
+    time_t     now = time(0);
+    struct tm  tstruct;
+    char       buf[80];
+    tstruct = *localtime(&now);
+    std::strftime(buf, sizeof(buf), "%Y-%m-%d.%X", &tstruct);
+
+    return buf;
+}
+#endif
