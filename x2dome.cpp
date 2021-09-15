@@ -357,11 +357,16 @@ void X2Dome::uiEvent(X2GUIExchangeInterface* uiex, const char* pszEvent)
                 bComplete = false;
                 nErr = m_LunaticoBeaver.isCalibratingDomeComplete(bComplete);
                 if(nErr) {
-                    uiex->setEnabled("pushButtonOK",true);
-					uiex->setEnabled("pushButtonCancel", true);
-                    snprintf(szErrorMessage, LOG_BUFFER_SIZE, "Error calibrating dome : Error %d", nErr);
-                    uiex->messageBox("Dome Calibrate", szErrorMessage);
-                    m_bCalibratingDome = false;
+                    if(m_nCalibratingError<4) { // this is to protect from the reboot
+                        m_nCalibratingError++;
+                    }
+                    else {
+                        uiex->setEnabled("pushButtonOK",true);
+                        uiex->setEnabled("pushButtonCancel", true);
+                        snprintf(szErrorMessage, LOG_BUFFER_SIZE, "Error calibrating dome : Error %d", nErr);
+                        uiex->messageBox("Dome Calibrate", szErrorMessage);
+                        m_bCalibratingDome = false;
+                    }
                     return;
                 }
 
@@ -384,11 +389,16 @@ void X2Dome::uiEvent(X2GUIExchangeInterface* uiex, const char* pszEvent)
                 bComplete = false;
                 nErr = m_LunaticoBeaver.isCalibratingShutterComplete(bComplete);
                 if(nErr) {
-                    uiex->setEnabled("pushButtonOK",true);
-                    uiex->setEnabled("pushButtonCancel", true);
-                    snprintf(szErrorMessage, LOG_BUFFER_SIZE, "Error calibrating shutter : Error %d", nErr);
-                    uiex->messageBox("Shutter Calibrate", szErrorMessage);
-                    m_bCalibratingShutter = false;
+                    if(m_nCalibratingError<4) { // this is to protect from the reboot
+                        m_nCalibratingError++;
+                    }
+                    else {
+                        uiex->setEnabled("pushButtonOK",true);
+                        uiex->setEnabled("pushButtonCancel", true);
+                        snprintf(szErrorMessage, LOG_BUFFER_SIZE, "Error calibrating shutter : Error %d", nErr);
+                        uiex->messageBox("Shutter Calibrate", szErrorMessage);
+                        m_bCalibratingShutter = false;
+                    }
                     return;
                 }
 
@@ -455,6 +465,7 @@ void X2Dome::uiEvent(X2GUIExchangeInterface* uiex, const char* pszEvent)
 				m_nSavedTicksPerRev = m_LunaticoBeaver.getDomeStepPerRev();
                 m_LunaticoBeaver.calibrateDome();
                 m_bCalibratingDome = true;
+                m_nCalibratingError = 0;
             }
         }
     }
@@ -480,6 +491,7 @@ void X2Dome::uiEvent(X2GUIExchangeInterface* uiex, const char* pszEvent)
                 uiex->setText("pushButton_3", "Abort");
                 m_LunaticoBeaver.calibrateShutter();
                 m_bCalibratingShutter = true;
+                m_nCalibratingError = 0;
             }
         }
     }
