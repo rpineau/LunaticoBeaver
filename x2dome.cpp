@@ -28,8 +28,6 @@ X2Dome::X2Dome(const char* pszSelection, const int& nISIndex,
     m_bHasShutterControl = false;
     
     m_LunaticoBeaver.setSerxPointer(pSerX);
-    m_LunaticoBeaver.setSleeprPinter(pSleeper);
-
     if (m_pIniUtil)
     {
         m_bLogRainStatus = m_pIniUtil->readInt(PARENT_KEY, CHILD_KEY_LOG_RAIN_STATUS, false);

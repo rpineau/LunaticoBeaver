@@ -245,7 +245,7 @@ int CLunaticoBeaver::readResponse(std::string &sResp, int nTimeout)
                 nErr = COMMAND_TIMEOUT;
                 break;
             }
-            m_pSleeper->sleep(MAX_READ_WAIT_TIMEOUT);
+            std::this_thread::sleep_for(std::chrono::milliseconds(MAX_READ_WAIT_TIMEOUT));
             continue;
         }
         nbTimeouts = 0;

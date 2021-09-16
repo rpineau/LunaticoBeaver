@@ -32,7 +32,6 @@
 // SB includes
 #include "../../licensedinterfaces/sberrorx.h"
 #include "../../licensedinterfaces/serxinterface.h"
-#include "../../licensedinterfaces/sleeperinterface.h"
 #include "../../licensedinterfaces/loggerinterface.h"
 
 #include "StopWatch.h"
@@ -46,14 +45,12 @@
 // #define PLUGIN_DEBUG 2
 #define PLUGIN_VERSION      1.1
 
-/*
+/* dome status
  • bit 0: ok moving rot
  • bit 1: ok moving shutter (3 ok moving both aka 2^0 + 2^1 = 3)
  • bit 2: mech error rotation
  • bit 3: mech error shutter
  • bit 4: comms error shutter
-
- … and from version 1.1.0, to include all status information in one command:
  • bit 5: unsafe by CW
  • bit 6: unsafe by Hydreon RG-x
  • bit 7: shutter open
@@ -72,7 +69,6 @@
 #define DOME_NOT_MOVING            0
 #define DOME_MOVING                1
 #define SHUTTER_MOVING             2
-#define DOME_AND_SHUTTER_MOVING    3
 #define DOME_MECH_ERROR            4
 #define SHUTTER_MECH_ERROR         8
 #define SHUTTER_COM_ERROR         16
@@ -106,7 +102,6 @@ public:
     const bool  IsConnected(void) { return m_bIsConnected; }
 
     void        setSerxPointer(SerXInterface *p) { m_pSerx = p; }
-    void        setSleeprPinter(SleeperInterface *p) {m_pSleeper = p; }
 
     // Dome commands
     int syncDome(double dAz, double dEl);
@@ -194,7 +189,6 @@ protected:
     std::string&    rtrim(std::string &str, const std::string &filter);
 
     SerXInterface   *m_pSerx;
-    SleeperInterface *m_pSleeper;
 
     bool            m_bIsConnected;
     bool            m_bParked;
