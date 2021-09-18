@@ -43,7 +43,7 @@
 #define RAIN_CHECK_INTERVAL 10
 
 // #define PLUGIN_DEBUG 2
-#define PLUGIN_VERSION      1.1
+#define PLUGIN_VERSION      1.2
 
 /* dome status
  • bit 0: ok moving rot
@@ -66,7 +66,6 @@
 #define SHUTTER_STATUS_MASK     0x0780
 #define DOME_HOME_PARK_MASK     0x1800
 
-#define DOME_NOT_MOVING            0
 #define DOME_MOVING                1
 #define SHUTTER_MOVING             2
 #define DOME_MECH_ERROR            4

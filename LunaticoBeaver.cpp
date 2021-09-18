@@ -677,7 +677,7 @@ bool CLunaticoBeaver::isDomeAtHome()
     if(m_bCalibrating)
         return nErr;
 
-    nErr = domeCommand("dome athome#", sResp);
+    nErr = domeCommand("!dome athome#", sResp);
     if(nErr) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
         m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isDomeAtHome] ERROR : " << nErr << " , sResp : " << sResp << std::endl;
@@ -1704,7 +1704,7 @@ int CLunaticoBeaver::setDomeStepPerRev(int nSteps)
 
     dStepPerDeg = float(nSteps)/360.0;
 
-    ssTmp << "!domerot setstepsperdegree  " << std::fixed << std::setprecision(6) << dStepPerDeg << "#";
+    ssTmp << "!domerot setstepsperdegree " << std::fixed << std::setprecision(6) << dStepPerDeg << "#";
     nErr = domeCommand(ssTmp.str(), sResp);
     if(nErr)
         return nErr;
@@ -1788,7 +1788,7 @@ int CLunaticoBeaver::setHomeAz(double dAz)
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
-    ssTmp << "!domerot sethome  " << std::fixed << std::setprecision(2) << dAz << "#";
+    ssTmp << "!domerot sethome " << std::fixed << std::setprecision(2) << dAz << "#";
     nErr = domeCommand(ssTmp.str(), sResp);
     return nErr;
 }
@@ -1814,7 +1814,7 @@ int CLunaticoBeaver::setParkAz(double dAz)
     if(!m_bIsConnected)
         return NOT_CONNECTED;
 
-    ssTmp << "!domerot setpark  " << std::fixed << std::setprecision(2) << dAz << "#";
+    ssTmp << "!domerot setpark " << std::fixed << std::setprecision(2) << dAz << "#";
     nErr = domeCommand(ssTmp.str(), sResp);
     return nErr;
 }
