@@ -32,7 +32,6 @@
 // SB includes
 #include "../../licensedinterfaces/sberrorx.h"
 #include "../../licensedinterfaces/serxinterface.h"
-#include "../../licensedinterfaces/loggerinterface.h"
 
 #include "StopWatch.h"
 
@@ -43,7 +42,7 @@
 #define RAIN_CHECK_INTERVAL 10
 
 // #define PLUGIN_DEBUG 2
-#define PLUGIN_VERSION      1.2
+#define PLUGIN_VERSION      1.4
 
 /* dome status
  • bit 0: ok moving rot
@@ -177,7 +176,9 @@ protected:
     int             getDomeStepPerDeg(double &dStepPerDeg);
     int             setDomeStepPerDeg(double dStepPerDeg);
     int             getDomeStatus(int &nStatus);
-    
+
+    int             setMaxRotationTime(int nSeconds);
+
     bool            isDomeMoving();
     bool            isDomeAtHome();
     bool            checkBoundaries(double dGotoAz, double dDomeAz);

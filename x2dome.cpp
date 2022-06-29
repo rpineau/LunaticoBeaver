@@ -202,7 +202,7 @@ int X2Dome::execModalSettingsDialog()
             dx->setPropertyDouble("lowShutBatCutOff", "value", dShutterCutOff);
 
             if(dShutterBattery>=0.0f)
-                ssTmpBuf << std::fixed << std::setprecision(2) << std::fixed << std::setprecision(2) << dShutterBattery << " V";
+                ssTmpBuf << std::fixed << std::setprecision(2) << dShutterBattery << " V";
             else
                 ssTmpBuf << "--";
 
@@ -247,10 +247,8 @@ int X2Dome::execModalSettingsDialog()
         dx->setPropertyString("domeBatteryLevel", "text", "--");
         dx->setPropertyString("shutterBatteryLevel", "text", "--");
         dx->setEnabled("panID", false);
-        dx->setEnabled("pushButton_2", false);
         dx->setEnabled("pushButton", false);
         dx->setEnabled("pushButton_3", false);
-        dx->setEnabled("pushButton_4", false);
         dx->setPropertyString("domePointingError", "text", "--");
         dx->setPropertyString("rainStatus","text", "--");
     }
@@ -349,7 +347,8 @@ void X2Dome::uiEvent(X2GUIExchangeInterface* uiex, const char* pszEvent)
         }
 
         if(m_bLinked) {
-           if(m_bCalibratingDome) {
+           if(m_bCalibratingDome && m_DomeCalibrationTimer.GetElapsedSeconds()>5) {
+                m_DomeCalibrationTimer.Reset();
                 // are we still calibrating ?
                 bComplete = false;
                 nErr = m_LunaticoBeaver.isCalibratingDomeComplete(bComplete);
@@ -376,12 +375,13 @@ void X2Dome::uiEvent(X2GUIExchangeInterface* uiex, const char* pszEvent)
 				uiex->setEnabled("pushButtonCancel", true);
 				m_bCalibratingDome = false;
 				uiex->setText("pushButton", "Calibrate");
-                uiex->setEnabled("pushButton_2", true);
+                uiex->setEnabled("pushButton_3", true);
                 // read step per rev from controller
                 uiex->setPropertyInt("ticksPerRev","value", m_LunaticoBeaver.getDomeStepPerRev());
 			}
 
-            else if(m_bCalibratingShutter) {
+            else if(m_bCalibratingShutter && m_DomeCalibrationTimer.GetElapsedSeconds()>=5) {
+                m_DomeCalibrationTimer.Reset();
                 // are we still calibrating ?
                 bComplete = false;
                 nErr = m_LunaticoBeaver.isCalibratingShutterComplete(bComplete);
@@ -406,6 +406,7 @@ void X2Dome::uiEvent(X2GUIExchangeInterface* uiex, const char* pszEvent)
                 // enable buttons
                 uiex->setEnabled("pushButtonOK",true);
                 uiex->setEnabled("pushButtonCancel", true);
+                uiex->setEnabled("pushButton", true);
                 m_bCalibratingShutter = false;
                 uiex->setText("pushButton_3", "Calibrate");
             }
@@ -417,7 +418,7 @@ void X2Dome::uiEvent(X2GUIExchangeInterface* uiex, const char* pszEvent)
                     if(dShutterCutOff < 1.0f) // not right.. ask again
                         m_LunaticoBeaver.getBatteryLevels(dShutterBattery, dShutterCutOff);
                         if(dShutterBattery>=0.0f)
-                            ssTmpBuf << std::fixed << std::setprecision(2) << std::fixed << std::setprecision(2) << dShutterBattery << " V";
+                            ssTmpBuf << std::fixed << std::setprecision(2) << dShutterBattery << " V";
                         else
                             ssTmpBuf << "--";
                         uiex->setPropertyString("shutterBatteryLevel","text", ssTmpBuf.str().c_str());
@@ -445,7 +446,7 @@ void X2Dome::uiEvent(X2GUIExchangeInterface* uiex, const char* pszEvent)
                 // enable buttons
                 uiex->setEnabled("pushButtonOK", true);
                 uiex->setEnabled("pushButtonCancel", true);
-                uiex->setEnabled("pushButton_2", true);
+                uiex->setEnabled("pushButton_3", true);
                 // stop everything
                 m_LunaticoBeaver.abortCurrentCommand();
                 m_bCalibratingDome = false;
@@ -458,13 +459,14 @@ void X2Dome::uiEvent(X2GUIExchangeInterface* uiex, const char* pszEvent)
                 // disable buttons
                 uiex->setEnabled("pushButtonOK", false);
                 uiex->setEnabled("pushButtonCancel", false);
-                uiex->setEnabled("pushButton_2", false);
+                uiex->setEnabled("pushButton_3", false);
                 // change "Calibrate" to "Abort"
                 uiex->setText("pushButton", "Abort");
 				m_nSavedTicksPerRev = m_LunaticoBeaver.getDomeStepPerRev();
                 m_LunaticoBeaver.calibrateDome();
                 m_bCalibratingDome = true;
                 m_nCalibratingError = 0;
+                m_DomeCalibrationTimer.Reset();
             }
         }
     }
@@ -477,6 +479,7 @@ void X2Dome::uiEvent(X2GUIExchangeInterface* uiex, const char* pszEvent)
                 // enable buttons
                 uiex->setEnabled("pushButtonOK", true);
                 uiex->setEnabled("pushButtonCancel", true);
+                uiex->setEnabled("pushButton", true);
                 // stop everything
                 m_LunaticoBeaver.abortCurrentCommand();
                 m_bCalibratingShutter = false;
@@ -486,11 +489,13 @@ void X2Dome::uiEvent(X2GUIExchangeInterface* uiex, const char* pszEvent)
                 // disable buttons
                 uiex->setEnabled("pushButtonOK", false);
                 uiex->setEnabled("pushButtonCancel", false);
+                uiex->setEnabled("pushButton", false);
                 // change "Calibrate" to "Abort"
                 uiex->setText("pushButton_3", "Abort");
                 m_LunaticoBeaver.calibrateShutter();
                 m_bCalibratingShutter = true;
                 m_nCalibratingError = 0;
+                m_DomeCalibrationTimer.Reset();
             }
         }
     }
@@ -532,7 +537,7 @@ void X2Dome::uiEvent(X2GUIExchangeInterface* uiex, const char* pszEvent)
             uiex->setPropertyDouble("lowShutBatCutOff", "value", dShutterCutOff);
 
             if(dShutterBattery>=0.0f)
-                ssTmpBuf << std::fixed << std::setprecision(2) << std::fixed << std::setprecision(2) << dShutterBattery << " V";
+                ssTmpBuf << std::fixed << std::setprecision(2) << dShutterBattery << " V";
             else
                 ssTmpBuf << "--";
             uiex->setPropertyString("shutterBatteryLevel","text", ssTmpBuf.str().c_str());

@@ -164,6 +164,7 @@ private:
     bool        m_bLogRainStatus;
 
     CStopWatch  m_SetPanIdTimer;
-    
+    CStopWatch  m_DomeCalibrationTimer;
+
     // bool        mIsRollOffRoof;
 };
