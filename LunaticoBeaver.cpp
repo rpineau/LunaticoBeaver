@@ -149,7 +149,8 @@ int CLunaticoBeaver::Connect(const char *pszPort)
 
     writeRainStatus();
     m_cRainCheckTimer.Reset();
-    
+
+    setMaxRotationTime(300);
     return SB_OK;
 }
 
@@ -332,7 +333,7 @@ int CLunaticoBeaver::getDomeAz(double &dDomeAz)
     }
 
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getDomeAz] Dome Az  : " << std::fixed << std::setprecision(2) << std::fixed << std::setprecision(2) << m_dParkAz << std::endl;
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getDomeAz] Dome Az  : " << std::fixed << std::setprecision(2) << m_dParkAz << std::endl;
     m_sLogFile.flush();
 #endif
 
@@ -403,7 +404,7 @@ int CLunaticoBeaver::getDomeHomeAz(double &dAz)
 
     m_dHomeAz = dAz;
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getDomeHomeAz] Dome Az  : " << std::fixed << std::setprecision(2) << std::fixed << std::setprecision(2) << m_dHomeAz << std::endl;
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getDomeHomeAz] Dome Az  : " << std::fixed << std::setprecision(2) << m_dHomeAz << std::endl;
     m_sLogFile.flush();
 #endif
 
@@ -449,7 +450,7 @@ int CLunaticoBeaver::getDomeParkAz(double &dAz)
     }
     m_dParkAz = dAz;
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getDomeParkAz] Dome Az  : " << std::fixed << std::setprecision(2) << std::fixed << std::setprecision(2) << m_dHomeAz << std::endl;
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getDomeParkAz] Dome Az  : " << std::fixed << std::setprecision(2) << m_dHomeAz << std::endl;
     m_sLogFile.flush();
 #endif
 
@@ -577,8 +578,8 @@ int CLunaticoBeaver::getBatteryLevels(double &dShutterVolts, double &dShutterCut
             }
         }
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getDomeParkAz] dShutterVolts  : " << std::fixed << std::setprecision(2) << std::fixed << std::setprecision(2) << dShutterVolts << std::endl;
-        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getDomeParkAz] dShutterCutOff : " << std::fixed << std::setprecision(2) << std::fixed << std::setprecision(2) << dShutterCutOff << std::endl;
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getDomeParkAz] dShutterVolts  : " << std::fixed << std::setprecision(2) << dShutterVolts << std::endl;
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [getDomeParkAz] dShutterCutOff : " << std::fixed << std::setprecision(2) << dShutterCutOff << std::endl;
         m_sLogFile.flush();
 #endif
     }
@@ -662,6 +663,32 @@ int CLunaticoBeaver::getDomeStatus(int &nStatus)
     
     return nErr;
 }
+
+int CLunaticoBeaver::setMaxRotationTime(int nSeconds)
+{
+    int nErr = PLUGIN_OK;
+    std::string sResp;
+    std::vector<std::string> svFields;
+
+    if(!m_bIsConnected)
+        return NOT_CONNECTED;
+
+    if(m_bCalibrating)
+        return nErr;
+
+    nErr = domeCommand("!domerot setmaxfullrotsecs 300#", sResp);
+    if(nErr) {
+#if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [setMaxRotationTime] ERROR : " << nErr << " , sResp : " << sResp << std::endl;
+        m_sLogFile.flush();
+#endif
+        return false;
+    }
+
+    return nErr;
+}
+
+
 
 bool CLunaticoBeaver::isDomeAtHome()
 {
@@ -771,7 +798,7 @@ int CLunaticoBeaver::unparkDome()
     }
     else {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [unparkDome] m_dParkAz : "  << std::fixed << std::setprecision(2) << std::fixed << std::setprecision(2) << m_dParkAz << std::endl;
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [unparkDome] m_dParkAz : " << std::fixed << std::setprecision(2) << m_dParkAz << std::endl;
         m_sLogFile.flush();
 #endif
         syncDome(m_dParkAz, m_dCurrentElPosition);
@@ -1006,7 +1033,7 @@ int CLunaticoBeaver::goHome()
 #endif
 
     m_nHomingTries = 0;
-    nErr = domeCommand("!dome gohome#", sResp);
+    nErr = domeCommand("!dome gohome 300#", sResp);
     if(nErr) {
 #ifdef PLUGIN_DEBUG
         m_sLogFile << "["<<getTimeStamp()<<"]"<< " [goHome] ERROR : " << nErr << " , sResp : " << sResp << std::endl;
@@ -1029,7 +1056,7 @@ int CLunaticoBeaver::calibrateDome()
     if(m_bCalibrating)
         return nErr;
 
-    nErr = domeCommand("!domerot calibrate 2#", sResp);
+    nErr = domeCommand("!domerot calibrate 2 300#", sResp); // 5 minute timeout .. to be on the safe side
     if(nErr) {
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
         m_sLogFile << "["<<getTimeStamp()<<"]"<< " [calibrate] ERROR : " << nErr << " , sResp : " << sResp << std::endl;
@@ -1091,8 +1118,8 @@ int CLunaticoBeaver::isGoToComplete(bool &bComplete)
     getDomeAz(dDomeAz);
 
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isGoToComplete] dDomeAz : "  << std::fixed << std::setprecision(2) << std::fixed << std::setprecision(2) << dDomeAz << std::endl;
-    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isGoToComplete] m_dGotoAz : "  << std::fixed << std::setprecision(2) << std::fixed << std::setprecision(2) << m_dGotoAz << std::endl;
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isGoToComplete] dDomeAz : "  << std::fixed << std::setprecision(2) << dDomeAz << std::endl;
+    m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isGoToComplete] m_dGotoAz : "  << std::fixed << std::setprecision(2) << m_dGotoAz << std::endl;
     m_sLogFile.flush();
 #endif
 
@@ -1103,7 +1130,7 @@ int CLunaticoBeaver::isGoToComplete(bool &bComplete)
     else {
         // we're not moving and we're not at the final destination !!!
 #if defined PLUGIN_DEBUG && PLUGIN_DEBUG >= 2
-        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isGoToComplete]  ***** ERROR **** domeAz =  dDomeAz : "  << std::fixed << std::setprecision(2) << std::fixed << std::setprecision(2) << dDomeAz << " , m_dGotoAz : "  << std::fixed << std::setprecision(2) << std::fixed << std::setprecision(2) << m_dGotoAz << std::endl;
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isGoToComplete]  ***** ERROR **** domeAz =  dDomeAz : "  << std::fixed << std::setprecision(2) << dDomeAz << " , m_dGotoAz : "  << std::fixed << std::setprecision(2) << m_dGotoAz << std::endl;
         m_sLogFile.flush();
 #endif
         if(m_nGotoTries == 0) {
@@ -1447,7 +1474,7 @@ int CLunaticoBeaver::isCalibratingDomeComplete(bool &bComplete)
         m_bCalibrating = false;
         nErr = getDomeStepPerDeg(m_dStepsPerDeg);
 #ifdef PLUGIN_DEBUG
-        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isCalibratingDomeComplete] final m_dStepsPerDeg  : "  << std::fixed << std::setprecision(2) << std::fixed << std::setprecision(2) << m_dStepsPerDeg << std::endl;
+        m_sLogFile << "["<<getTimeStamp()<<"]"<< " [isCalibratingDomeComplete] final m_dStepsPerDeg  : "  << std::fixed << std::setprecision(2) << m_dStepsPerDeg << std::endl;
         m_sLogFile.flush();
 #endif
     }
