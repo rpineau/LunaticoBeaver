@@ -42,7 +42,7 @@
 #define RAIN_CHECK_INTERVAL 10
 
 // #define PLUGIN_DEBUG 2
-#define PLUGIN_VERSION      1.4
+#define PLUGIN_VERSION      1.5
 
 /* dome status
  • bit 0: ok moving rot

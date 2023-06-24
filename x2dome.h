@@ -16,6 +16,7 @@
 #include "../../licensedinterfaces/mutexinterface.h"
 #include "../../licensedinterfaces/tickcountinterface.h"
 #include "../../licensedinterfaces/serialportparams2interface.h"
+#include "../../licensedinterfaces/domehasreliableopenclosesensors.h"
 
 #include "LunaticoBeaver.h"
 #include "StopWatch.h"
@@ -42,7 +43,7 @@
 
 Use this example to write an X2Dome driver.
 */
-class X2Dome: public DomeDriverInterface, public SerialPortParams2Interface, public ModalSettingsDialogInterface, public X2GUIEventInterface
+class X2Dome: public DomeDriverInterface, public SerialPortParams2Interface, public ModalSettingsDialogInterface, public X2GUIEventInterface, public DomeHasHighlyRelaibleOpenCloseSensors
 {
 public:
 
